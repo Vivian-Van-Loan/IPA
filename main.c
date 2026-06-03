@@ -8,6 +8,8 @@
 
 #include "utils.h"
 #include "mclient/matrix-client.h"
+#include "mclient/matrix-utils.h"
+#include "mclient/login.h"
 
 int main(int argc, char** argv) {
 	gfxInitDefault();
@@ -18,14 +20,16 @@ int main(int argc, char** argv) {
 		return res;
 	}
 
-	curl_easy_setopt(curlhandle, CURLOPT_URL, "https://toasterwaffle.win/");
-
-	/* Perform the request, 'res' holds the return code */
-	res = curl_easy_perform(curlhandle);
-	/* Check for errors */
-	if (res != CURLE_OK) {
-		fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-	}
+	// curl_easy_setopt(curlhandle, CURLOPT_URL, "https://toasterwaffle.win/");
+	//
+	// /* Perform the request, 'res' holds the return code */
+	// res = curl_easy_perform(curlhandle);
+	// /* Check for errors */
+	// if (res != CURLE_OK) {
+	// 	fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+	// }
+	char* resolved = resolve_url("toasterwaffle.win");
+	printf("Resolved to: %s\n", resolved);
 
 	while (aptMainLoop()) {
 		hidScanInput();

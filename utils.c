@@ -60,6 +60,12 @@ int init_curl() {
     return 0;
 }
 
+void destroy_curl() {
+    curl_easy_cleanup(curlhandle);
+    socExit();
+    free(socubuf);
+}
+
 int make_dirs(char const* path) {
     char buf[PATH_MAX];
     strncpy(buf, path, sizeof(buf));
@@ -79,12 +85,6 @@ int make_dirs(char const* path) {
         ptr = strchr(ptr, '/');
     }
     return 0;
-}
-
-void destroy_curl() {
-    curl_easy_cleanup(curlhandle);
-    socExit();
-    free(socubuf);
 }
 
 int download_file(char const* url, char const* path) {
@@ -120,6 +120,13 @@ int download_file(char const* url, char const* path) {
         efuncprintf("Failed to fully download file for reason: %s\n", curl_easy_strerror(res));
         goto exit;
     }
+    long response_code;
+    curl_easy_getinfo(curlhandle, CURLINFO_RESPONSE_CODE, &response_code);
+    if (response_code != 200) {
+        efuncprintf("Failed to download file, response code: %ld\n", response_code);
+        goto exit;
+    }
+
     remove = false;
 
 exit:
@@ -137,4 +144,48 @@ int update_root_ca() {
         //todo: idk warn the user and ask if they want to try again or something
     }
     return res;
+}
+
+size_t write_response(void* ptr, size_t size, size_t nmemb, void* stream) {
+    curl_write_result_t* result = stream;
+
+    if (result->pos + size * nmemb >= result->max_size - 1) {
+        efuncprintf("error: too small buffer\n");
+        return 0;
+    }
+
+    memcpy(result->data + result->pos, ptr, size * nmemb);
+    result->pos += size * nmemb;
+
+    return size * nmemb;
+}
+
+char* download_to_string(char const* url) {
+    curl_write_result_t result = {0};
+    result.data = malloc(DOWNLOAD_BUFFER_SIZE);
+    result.max_size = DOWNLOAD_BUFFER_SIZE;
+
+    curl_easy_setopt(curlhandle, CURLOPT_WRITEFUNCTION, write_response);
+    curl_easy_setopt(curlhandle, CURLOPT_WRITEDATA, &result);
+    curl_easy_setopt(curlhandle, CURLOPT_URL, url);
+    CURLcode status = curl_easy_perform(curlhandle);
+    if (status != CURLE_OK) {
+        efuncprintf("curl_easy_perform() failed: %s\n", curl_easy_strerror(status));
+        goto error;
+    }
+    long response_code;
+    curl_easy_getinfo(curlhandle, CURLINFO_RESPONSE_CODE, &response_code);
+    if (response_code != 200) {
+        efuncprintf("Failed to download page, response code: %ld\n", response_code);
+        goto error;
+    }
+
+    result.data[result.pos] = '\0';
+    size_t len = strlen(result.data);
+    realloc(result.data, len + 1);
+    return result.data;
+
+error:
+    free(result.data);
+    return nullptr;
 }
