@@ -1,6 +1,6 @@
 #ifndef MATRIX_CLIENT_MATRIX_UTILS_H
 #define MATRIX_CLIENT_MATRIX_UTILS_H
 
-char* resolve_url(char const* base_url);
+char* matrix_resolve_homeserver(char const* homeserver_base);
 
 #endif //MATRIX_CLIENT_MATRIX_UTILS_H

@@ -7,29 +7,26 @@
 #include <jansson.h>
 
 #include "utils.h"
-#include "mclient/matrix-client.h"
-#include "mclient/matrix-utils.h"
-#include "mclient/login.h"
+#include "matrix/matrix-client.h"
+#include "matrix/matrix-utils.h"
+#include "matrix/login.h"
 
 int main(int argc, char** argv) {
 	gfxInitDefault();
 	consoleInit(GFX_TOP, NULL);
 
-	int res = init_curl();
+	int res = init_general();
 	if (res) {
 		return res;
 	}
 
-	// curl_easy_setopt(curlhandle, CURLOPT_URL, "https://toasterwaffle.win/");
-	//
-	// /* Perform the request, 'res' holds the return code */
-	// res = curl_easy_perform(curlhandle);
-	// /* Check for errors */
-	// if (res != CURLE_OK) {
-	// 	fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-	// }
-	char* resolved = resolve_url("toasterwaffle.win");
-	printf("Resolved to: %s\n", resolved);
+	res = init_curl();
+	if (res) {
+		return res;
+	}
+
+	matrix_login_t login = matrix_login_pass("server", "user", "pass", nullptr);
+	printf("Logged in as: %s\n\tto server: %s\n\tto with device_id: %s\n\tand access token: %s", login.user_id, login.homeserver, login.device_id, login.access_token);
 
 	while (aptMainLoop()) {
 		hidScanInput();

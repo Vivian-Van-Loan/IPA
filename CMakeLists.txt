@@ -8,11 +8,11 @@ set(MATRIXC_SRCS
         main.c
         utils.c
         utils.h
-        mclient/matrix-client.h
-        mclient/login.c
-        mclient/login.h
-        mclient/matrix-utils.c
-        mclient/matrix-utils.h
+        matrix/matrix-client.h
+        matrix/login.c
+        matrix/login.h
+        matrix/matrix-utils.c
+        matrix/matrix-utils.h
 )
 
 find_package(PkgConfig)

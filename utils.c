@@ -8,9 +8,14 @@
 #include <3ds.h>
 #include <malloc.h>
 
-CURL* curlhandle = NULL;
+CURL* curl_handle = NULL;
+struct curl_slist* curl_headers = nullptr;
 void* socubuf;
 bool verify_tls = true;
+
+int init_general() {
+    return make_dirs(SAVE_DIR);
+}
 
 int init_curl() {
     socubuf = memalign(0x1000, 0x100000);
@@ -31,18 +36,18 @@ int init_curl() {
         return res;
     }
 
-    curlhandle = curl_easy_init();
+    curl_handle = curl_easy_init();
 
-    curl_easy_setopt(curlhandle, CURLOPT_FOLLOWLOCATION, 1L); //todo: we should check return values on these
-    curl_easy_setopt(curlhandle, CURLOPT_FAILONERROR, 1L);
-    curl_easy_setopt(curlhandle, CURLOPT_ACCEPT_ENCODING, "gzip");
-    curl_easy_setopt(curlhandle, CURLOPT_MAXREDIRS, 50L);
-    curl_easy_setopt(curlhandle, CURLOPT_CONNECTTIMEOUT, 10L);
-    curl_easy_setopt(curlhandle, CURLOPT_STDERR, stdout);
+    curl_easy_setopt(curl_handle, CURLOPT_FOLLOWLOCATION, 1L); //todo: we should check return values on these
+    curl_easy_setopt(curl_handle, CURLOPT_FAILONERROR, 1L);
+    curl_easy_setopt(curl_handle, CURLOPT_ACCEPT_ENCODING, "gzip");
+    curl_easy_setopt(curl_handle, CURLOPT_MAXREDIRS, 50L);
+    curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT, 10L);
+    curl_easy_setopt(curl_handle, CURLOPT_STDERR, stdout);
 
     if (access(CACERT_PATH, F_OK) == 0 || update_root_ca() == 0) {
         verify_tls = true;
-        res = curl_easy_setopt(curlhandle, CURLOPT_CAINFO, CACERT_PATH);
+        res = curl_easy_setopt(curl_handle, CURLOPT_CAINFO, CACERT_PATH);
         if (res) {
             efuncprintf("Failed to set root ca file for reason: %s\n", curl_easy_strerror(res));
             destroy_curl();
@@ -53,17 +58,28 @@ int init_curl() {
         destroy_curl();
         return -2;
     }
-    curl_easy_setopt(curlhandle, CURLOPT_SSL_VERIFYPEER, verify_tls);
-    curl_easy_setopt(curlhandle, CURLOPT_WRITEFUNCTION, nullptr);
-    curl_easy_setopt(curlhandle, CURLOPT_WRITEDATA, stdout);
+    curl_easy_setopt(curl_handle, CURLOPT_SSL_VERIFYPEER, verify_tls);
+    curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, nullptr);
+    curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, stdout);
 
     return 0;
 }
 
 void destroy_curl() {
-    curl_easy_cleanup(curlhandle);
+    curl_slist_free_all(curl_headers);
+    curl_easy_cleanup(curl_handle);
     socExit();
     free(socubuf);
+}
+
+int curl_add_header(char const* header) {
+    struct curl_slist* new = curl_slist_append(curl_headers, header);
+    if (!header) {
+        return -1;
+    }
+    curl_headers = new;
+    curl_easy_setopt(curl_handle, CURLOPT_HTTPHEADER, curl_headers);
+    return 0;
 }
 
 int make_dirs(char const* path) {
@@ -100,28 +116,28 @@ int download_file(char const* url, char const* path) {
         return res;
     }
 
-    curl_easy_setopt(curlhandle, CURLOPT_WRITEFUNCTION, nullptr); //reset to default (ie. write to provided file below)
-    curl_easy_setopt(curlhandle, CURLOPT_WRITEDATA, file_ptr); //these two are literally unable to fail
+    curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, nullptr); //reset to default (ie. write to provided file below)
+    curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, file_ptr); //these two are literally unable to fail
 
-    res = curl_easy_setopt(curlhandle, CURLOPT_SSL_VERIFYPEER, verify_tls);
+    res = curl_easy_setopt(curl_handle, CURLOPT_SSL_VERIFYPEER, verify_tls);
     if (res) {
         efuncprintf("Failed to change curl SSL verify state for reason: %s\n", curl_easy_strerror(res));
         goto exit;
     }
 
-    res = curl_easy_setopt(curlhandle, CURLOPT_URL, url);
+    res = curl_easy_setopt(curl_handle, CURLOPT_URL, url);
     if (res) {
         efuncprintf("Failed to change curl download URL to: %s for reason: %s\n", url, curl_easy_strerror(res));
         goto exit;
     }
 
-    res = curl_easy_perform(curlhandle);
+    res = curl_easy_perform(curl_handle);
     if (res) {
         efuncprintf("Failed to fully download file for reason: %s\n", curl_easy_strerror(res));
         goto exit;
     }
     long response_code;
-    curl_easy_getinfo(curlhandle, CURLINFO_RESPONSE_CODE, &response_code);
+    curl_easy_getinfo(curl_handle, CURLINFO_RESPONSE_CODE, &response_code);
     if (response_code != 200) {
         efuncprintf("Failed to download file, response code: %ld\n", response_code);
         goto exit;
@@ -161,20 +177,21 @@ size_t write_response(void* ptr, size_t size, size_t nmemb, void* stream) {
 }
 
 char* download_to_string(char const* url) {
+    // printf("URL: %s\n", url);
     curl_write_result_t result = {0};
     result.data = malloc(DOWNLOAD_BUFFER_SIZE);
     result.max_size = DOWNLOAD_BUFFER_SIZE;
 
-    curl_easy_setopt(curlhandle, CURLOPT_WRITEFUNCTION, write_response);
-    curl_easy_setopt(curlhandle, CURLOPT_WRITEDATA, &result);
-    curl_easy_setopt(curlhandle, CURLOPT_URL, url);
-    CURLcode status = curl_easy_perform(curlhandle);
+    curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, write_response);
+    curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, &result);
+    curl_easy_setopt(curl_handle, CURLOPT_URL, url);
+    CURLcode status = curl_easy_perform(curl_handle);
+    long response_code;
+    curl_easy_getinfo(curl_handle, CURLINFO_RESPONSE_CODE, &response_code);
     if (status != CURLE_OK) {
-        efuncprintf("curl_easy_perform() failed: %s\n", curl_easy_strerror(status));
+        efuncprintf("curl_easy_perform() failed, response code: %ld, reason: %s\n", response_code, curl_easy_strerror(status));
         goto error;
     }
-    long response_code;
-    curl_easy_getinfo(curlhandle, CURLINFO_RESPONSE_CODE, &response_code);
     if (response_code != 200) {
         efuncprintf("Failed to download page, response code: %ld\n", response_code);
         goto error;
@@ -188,4 +205,14 @@ char* download_to_string(char const* url) {
 error:
     free(result.data);
     return nullptr;
+}
+
+char* http_get_string(char const* url) {
+    curl_easy_setopt(curl_handle, CURLOPT_HTTPGET, 1);
+    return download_to_string(url);
+}
+
+char* post_json_string(char const* url, char const* json) {
+    curl_easy_setopt(curl_handle, CURLOPT_POSTFIELDS, json);
+    return download_to_string(url);
 }
