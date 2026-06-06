@@ -20,6 +20,8 @@ set(MATRIXC_SRCS
         matrix/matrix-utils.c
         matrix/matrix-utils.h
         matrix/matrix-client.c
+		graphics/graphics.c
+		graphics/graphics.h
 )
 
 add_executable(${PROJECT_NAME} ${MATRIXC_SRCS})
@@ -55,16 +57,16 @@ dkp_add_asset_target(${PROJECT_NAME}_romfs romfs)
 
 # Texture atlas (example)
 ctr_add_graphics_target(IPA_TEXTURES_MAIN ATLAS
-	INPUTS gfx/main/D.png gfx/main/S.png gfx/main/R.png gfx/main/Gear.png
+	INPUTS resources/gfx/main/D.png resources/gfx/main/S.png resources/gfx/main/R.png resources/gfx/main/Gear.png
 )
 
 ctr_add_graphics_target(IPA_TEXTURES_GRADIENT ATLAS
-	INPUTS gfx/gradient/border.png gfx/gradient/button.png
+	INPUTS resources/gfx/gradient/border.png resources/gfx/gradient/button.png
 )
 
 # Install assets to RomFS (uncomment as needed)
 dkp_install_assets(${PROJECT_NAME}_romfs
-	DESTINATION gfx
+	DESTINATION resources/gfx
 	TARGETS IPA_TEXTURES_MAIN IPA_TEXTURES_GRADIENT
 )
 

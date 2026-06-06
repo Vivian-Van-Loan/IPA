@@ -7,15 +7,13 @@
 #include "matrix-utils.h"
 #include "../utils.h"
 
-//DOES NOT logout, just frees and clears
-matrix_login_t matrix_login_pass(char const* homeserver_base, char const* user, char const* pass, char const* device_id_str) {
-    matrix_login_t login = {0};
+void matrix_login_pass(matrix_login_t* login, char const* homeserver_base, char const* user, char const* pass, char const* device_id_str) {
     json_t* root = nullptr;
     json_t* response = nullptr;
     char* json_str = nullptr;
     char* response_str = nullptr;
-    login.homeserver_resolved = matrix_resolve_homeserver(homeserver_base);
-    if (!login.homeserver_resolved) {
+    login->homeserver_resolved = matrix_resolve_homeserver(homeserver_base);
+    if (!login->homeserver_resolved) {
         efuncprintf("Failed to resolve homeserver to a matrix location\n");
         goto exit;
     }
@@ -34,7 +32,7 @@ matrix_login_t matrix_login_pass(char const* homeserver_base, char const* user, 
     // printf("Login: %s\n", json_str);
 
     char buf[URL_BUFFER_SIZE];
-    snprintf(buf, sizeof(buf), "%s/_matrix/client/v3/login", login.homeserver_resolved);
+    snprintf(buf, sizeof(buf), "%s/_matrix/client/v3/login", login->homeserver_resolved);
     response_str = post_json_string(buf, json_str);
     // printf("Response: %s\n", response_str);
     if (!response_str) {
@@ -64,29 +62,30 @@ matrix_login_t matrix_login_pass(char const* homeserver_base, char const* user, 
         efuncprintf("device_id failed\n");
         goto exit;
     }
-    login.user_id = strdup(json_string_value(user_id));
-    login.access_token = strdup(json_string_value(access_token));
-    login.homeserver = strdup(json_string_value(homeserver));
-    login.device_id = strdup(json_string_value(device_id));
+    login->user_id = strdup(json_string_value(user_id));
+    login->access_token = strdup(json_string_value(access_token));
+    login->homeserver = strdup(json_string_value(homeserver));
+    login->device_id = strdup(json_string_value(device_id));
 
-    snprintf(buf, sizeof(buf), "Authorization: Bearer %s", login.access_token);
+    snprintf(buf, sizeof(buf), "Authorization: Bearer %s", login->access_token);
     int res = curl_add_header(buf);
     if (res) {
         efuncprintf("Failed to add access token to curl headers\n");
         goto exit;
     }
 
-    login.logged_in = true;
+    login->logged_in = true;
 exit:
     json_decref(root);
     json_decref(response);
     free(json_str);
     free(response_str);
-    if (!login.logged_in)
-        matrix_login_destroy(&login);
-    return login;
+    if (!login->logged_in) {
+        matrix_login_destroy(login);
+    }
 }
 
+//DOES NOT logout, just frees and clears
 void matrix_login_destroy(matrix_login_t* login) {
     free(login->user_id);
     free(login->homeserver);

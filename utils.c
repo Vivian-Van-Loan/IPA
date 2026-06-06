@@ -14,6 +14,7 @@ void* socubuf;
 bool verify_tls = true;
 
 int init_general() {
+    romfsInit();
     return make_dirs(SAVE_DIR);
 }
 

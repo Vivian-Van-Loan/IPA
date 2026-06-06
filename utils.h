@@ -16,6 +16,15 @@ extern struct curl_slist* curl_headers;
 #define eprintf(args...) fprintf(stderr, args)
 #define efuncprintf(format, ...) fprintf(stderr, "%s: " format, __func__, ##__VA_ARGS__)
 #define lengthof(arr) (sizeof(arr) / sizeof(arr[0]))
+#define max(a,b) \
+    ({ typeof (a) _a = (a); \
+    typeof (b) _b = (b); \
+    _a > _b ? _a : _b; })
+#define min(a,b) \
+    ({ typeof (a) _a = (a); \
+    typeof (b) _b = (b); \
+    _a < _b ? _a : _b; })
+
 
 typedef struct curl_write_result_t {
     char* data;

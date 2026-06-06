@@ -106,6 +106,11 @@ int matrix_client_sync_account_data(matrix_client_t* client) {
     return 0;
 }
 
+matrix_client_t make_client() {
+    matrix_client_t client = {0};
+    return client;
+}
+
 void destroy_client(matrix_client_t* client) {
     matrix_login_destroy(&client->login);
     json_decref(client->core_account_data);
