@@ -7,7 +7,7 @@
 #include "../utils.h"
 
 char* matrix_resolve_homeserver(char const* homeserver_base) {
-    char buf[256];
+    char buf[URL_BUFFER_SIZE];
     snprintf(buf, sizeof(buf), "%s/.well-known/matrix/client", homeserver_base);
     char* json_str = http_get_string(buf);
     if (!json_str)
@@ -22,12 +22,12 @@ char* matrix_resolve_homeserver(char const* homeserver_base) {
         return resolved;
     json_t* container = json_object_get(root, "m.homeserver");
     if (!container) {
-        efuncprintf("Failed to get m.homeserver");
+        efuncprintf("Failed to get m.homeserver\n");
         goto exit;
     }
     json_t* url = json_object_get(container, "base_url");
     if (!url || !json_is_string(url)) {
-        efuncprintf("Failed to get base_url from m.homeserver");
+        efuncprintf("Failed to get base_url from m.homeserver\n");
         goto exit;
     }
     resolved = strdup(json_string_value(url));

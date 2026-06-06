@@ -7,8 +7,6 @@
 #include "matrix-utils.h"
 #include "../utils.h"
 
-void matrix_login_destroy(matrix_login_t* login);
-
 //DOES NOT logout, just frees and clears
 matrix_login_t matrix_login_pass(char const* homeserver_base, char const* user, char const* pass, char const* device_id_str) {
     matrix_login_t login = {0};
@@ -18,7 +16,7 @@ matrix_login_t matrix_login_pass(char const* homeserver_base, char const* user, 
     char* response_str = nullptr;
     login.homeserver_resolved = matrix_resolve_homeserver(homeserver_base);
     if (!login.homeserver_resolved) {
-        efuncprintf("Failed to resolve homeserver to a matrix location");
+        efuncprintf("Failed to resolve homeserver to a matrix location\n");
         goto exit;
     }
 
@@ -35,10 +33,10 @@ matrix_login_t matrix_login_pass(char const* homeserver_base, char const* user, 
     json_str = json_dumps(root, JSON_COMPACT);
     // printf("Login: %s\n", json_str);
 
-    char buf[256];
+    char buf[URL_BUFFER_SIZE];
     snprintf(buf, sizeof(buf), "%s/_matrix/client/v3/login", login.homeserver_resolved);
     response_str = post_json_string(buf, json_str);
-    printf("Response: %s\n", response_str);
+    // printf("Response: %s\n", response_str);
     if (!response_str) {
         efuncprintf("Failed to POST and download login\n");
         goto exit;

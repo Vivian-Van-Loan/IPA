@@ -82,7 +82,7 @@ int curl_add_header(char const* header) {
     return 0;
 }
 
-int make_dirs(char const* path) {
+int make_dirs(char const* path) { //WILL NOT CREATE THE LAST PART AS DIR UNLESS IT ENDS IN /
     char buf[PATH_MAX];
     strncpy(buf, path, sizeof(buf));
     buf[PATH_MAX - 1] = '\0';
@@ -90,6 +90,7 @@ int make_dirs(char const* path) {
     char* ptr = strchr(buf, '/');
     while (ptr) {
         *ptr = '\0';
+        // printf("%s\n", buf);
         int res = mkdir(buf, S_IRWXU | S_IRWXG | S_IRWXO);
         if (res && errno != EEXIST) {
             res = errno;
@@ -176,6 +177,22 @@ size_t write_response(void* ptr, size_t size, size_t nmemb, void* stream) {
     return size * nmemb;
 }
 
+int download(char const* url) {
+    curl_easy_setopt(curl_handle, CURLOPT_URL, url);
+    CURLcode status = curl_easy_perform(curl_handle);
+    long response_code;
+    curl_easy_getinfo(curl_handle, CURLINFO_RESPONSE_CODE, &response_code);
+    if (status != CURLE_OK) {
+        efuncprintf("curl_easy_perform() failed, response code: %ld, reason: %s\n", response_code, curl_easy_strerror(status));
+        return status;
+    }
+    if (response_code != 200) {
+        efuncprintf("Failed to download page, response code: %ld\n", response_code);
+        return -1;
+    }
+    return 0;
+}
+
 char* download_to_string(char const* url) {
     // printf("URL: %s\n", url);
     curl_write_result_t result = {0};
@@ -184,18 +201,9 @@ char* download_to_string(char const* url) {
 
     curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, write_response);
     curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, &result);
-    curl_easy_setopt(curl_handle, CURLOPT_URL, url);
-    CURLcode status = curl_easy_perform(curl_handle);
-    long response_code;
-    curl_easy_getinfo(curl_handle, CURLINFO_RESPONSE_CODE, &response_code);
-    if (status != CURLE_OK) {
-        efuncprintf("curl_easy_perform() failed, response code: %ld, reason: %s\n", response_code, curl_easy_strerror(status));
+    int status = download(url);
+    if (status)
         goto error;
-    }
-    if (response_code != 200) {
-        efuncprintf("Failed to download page, response code: %ld\n", response_code);
-        goto error;
-    }
 
     result.data[result.pos] = '\0';
     size_t len = strlen(result.data);
@@ -212,7 +220,35 @@ char* http_get_string(char const* url) {
     return download_to_string(url);
 }
 
+int get_file(char const* url, char const* path) {
+    make_dirs(path);
+    FILE* f = fopen(path, "wb");
+    if (!f) {
+        efuncprintf("Failed to open file: %s", path);
+        return -1;
+    }
+    curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, nullptr);
+    curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, f);
+    int status = download(url);
+    fclose(f);
+    if (status) {
+        unlink(path);
+        return -2;
+    }
+    return 0;
+}
+
+int http_get_file(char const* url, char const* path) {
+    curl_easy_setopt(curl_handle, CURLOPT_HTTPGET, 1);
+    return get_file(url, path);
+}
+
 char* post_json_string(char const* url, char const* json) {
     curl_easy_setopt(curl_handle, CURLOPT_POSTFIELDS, json);
     return download_to_string(url);
+}
+
+int post_json_file(char const* url, char const* json, char const* path) {
+    curl_easy_setopt(curl_handle, CURLOPT_POSTFIELDS, json);
+    return get_file(url, path);
 }

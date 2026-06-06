@@ -11,5 +11,6 @@ typedef struct matrix_login_t {
 } matrix_login_t;
 
 matrix_login_t matrix_login_pass(char const* homeserver_base, char const* user, char const* pass, char const* device_id_str);
+void matrix_login_destroy(matrix_login_t* login);
 
 #endif //MATRIX_CLIENT_LOGIN_H
