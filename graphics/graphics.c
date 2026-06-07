@@ -8,12 +8,15 @@ struct graphics_state_t {
     matrix_menu_t menu;
 };
 
-constexpr u32 white = C2D_Color32c(0xFB, 0xFB, 0xFB, 0xFF);
-constexpr u32 black = C2D_Color32c(0x00, 0x00, 0x00, 0xFF);
-constexpr u32 dark_grey = C2D_Color32c(0x49, 0x49, 0x49, 0xFF);
-constexpr u32 medium_grey = C2D_Color32c(0xAA, 0xAA, 0xAA, 0xFF);
-constexpr u32 light_grey = C2D_Color32c(0xBA, 0xBA, 0xBA, 0xFF);
-constexpr u32 orange = C2D_Color32c(0xFB, 0x69, 0x00, 0xFF);
+constexpr u32 WHITE = C2D_Color32c(0xFB, 0xFB, 0xFB, 0xFF);
+constexpr u32 BLACK = C2D_Color32c(0x00, 0x00, 0x00, 0xFF);
+constexpr u32 DARK_GREY = C2D_Color32c(0x49, 0x49, 0x49, 0xFF);
+constexpr u32 MEDIUM_GREY = C2D_Color32c(0xAA, 0xAA, 0xAA, 0xFF);
+constexpr u32 LIGHT_GREY = C2D_Color32c(0xBA, 0xBA, 0xBA, 0xFF);
+constexpr u32 ORANGE = C2D_Color32c(0xFB, 0x69, 0x00, 0xFF);
+
+constexpr float FADE_TOP = 0.25f;
+constexpr float FADE_BOTTOM = 1;
 
 C3D_RenderTarget* top;
 C3D_RenderTarget* bottom;
@@ -56,7 +59,8 @@ int init_graphics() {
     }
     // C2D_SpriteSheetFree(gradient_sheet);
 
-    u32 overlay_colour = C2D_Color32(128, 0, 255, 255);
+    // u32 overlay_colour = C2D_Color32(128, 0, 255, 255);
+    u32 overlay_colour = C2D_Color32(0xFF, 0x00, 0x00, 0xFF);
     C2D_PlainImageTint(&overlay_tint, overlay_colour, 0.5f);
 
     return 0;
@@ -64,66 +68,13 @@ int init_graphics() {
 
 void draw_background(struct graphics_state_t* graphics, unsigned x, unsigned y, unsigned w, unsigned h) {
     for (size_t i = 0; i < h / 4; i++) {
-        C2D_DrawLine(x, i * 4 + (y + 1), medium_grey, x + w, i * 4 + (y + 1), medium_grey, 3, 0); //thickness is from middle
-        C2D_DrawLine(x, i * 4 + (y + 3), light_grey, x + w, i * 4 + (y + 3), light_grey, 1, 0);
+        C2D_DrawLine(x, i * 4 + (y + 1), MEDIUM_GREY, x + w, i * 4 + (y + 1), MEDIUM_GREY, 3, 0); //thickness is from middle
+        C2D_DrawLine(x, i * 4 + (y + 3), LIGHT_GREY, x + w, i * 4 + (y + 3), LIGHT_GREY, 1, 0);
     }
 }
 
 void draw_top_screen_left(struct graphics_state_t* graphics) {
-    C2D_DrawRectSolid(7, 209, 0, 26, 2, overlay_tint.corners->color); //colour bar
-
-    C2D_DrawRectSolid(2, 4, 0, 17, 11, black); //todo: battery
-    C2D_DrawRectSolid(21, 1, 0, 16, 16, black); //todo: wireless state
-}
-
-void draw_top_screen_right(struct graphics_state_t* graphics) {
-    for (size_t i = 0; i < 234 / 2; i++) {
-        C2D_DrawLine(364, i * 2 + 3, dark_grey, 396, i * 2 + 3, dark_grey, 1, 0);
-        C2D_DrawLine(364, i * 2 + 4, black, 396, i * 2 + 4, black, 1, 0);
-    }
-
-    C2D_DrawLine(365, 0, black, 394, 0, black, 1, 0);
-    C2D_DrawLine(365, 2, orange, 394, 2, orange, 2, 0); //top
-    C2D_DrawLine(365, 3, black, 394, 3, black, 1, 0);
-
-    C2D_DrawLine(360, 5, black, 365, 0, black, 1, 0);
-    C2D_DrawLine(360, 6, black, 366, 0, black, 1, 0);
-    C2D_DrawLine(366, 2, orange, 362, 6, orange, 2, 0); //top left
-    C2D_DrawLine(363, 6, black, 366, 3, black, 1, 0);
-
-    C2D_DrawLine(394, -1, black, 400, 5, black, 1, 0);
-    C2D_DrawLine(393, -1, black, 400, 6, black, 1, 0);
-    C2D_DrawLine(393, 1, orange, 398, 6, orange, 2, 0); //top right
-    C2D_DrawLine(393, 3, black, 396, 6, black, 1, 0);
-
-    C2D_DrawLine(360, 6, black, 360, 234, black, 1, 0);
-    C2D_DrawLine(362, 5, orange, 362, 235, orange, 2, 0); //left side
-    C2D_DrawLine(363, 6, black, 363, 234, black, 1, 0);
-
-    C2D_DrawLine(396, 6, black, 396, 234, black, 1, 0);
-    C2D_DrawLine(398, 5, orange, 398, 235, orange, 2, 0); //right side
-    C2D_DrawLine(399, 6, black, 399, 234, black, 1, 0);
-
-    C2D_DrawLine(365, 236, black, 394, 236, black, 1, 0);
-    C2D_DrawLine(365, 238, orange, 394, 238, orange, 2, 0); //bottom
-    C2D_DrawLine(365, 239, black, 394, 239, black, 1, 0);
-
-    C2D_DrawLine(360, 235, black, 365, 240, black, 1, 0);
-    C2D_DrawLine(360, 234, black, 365, 239, black, 1, 0);
-    C2D_DrawLine(362, 234, orange, 366, 238, orange, 2, 0); //bottom left
-    C2D_DrawLine(363, 233,  black, 366, 236, black, 1, 0);
-
-    C2D_DrawLine(393, 240, black, 400, 233, black, 1, 0);
-    C2D_DrawLine(394, 240, black, 400, 234, black, 1, 0);
-    C2D_DrawLine(393, 238, orange, 398, 233, orange, 2, 0); //bottom right
-    C2D_DrawLine(393, 236, black, 396, 233, black, 1, 0);
-}
-
-void draw_main_menu_top(struct graphics_state_t* graphics) {
-    C2D_SceneBegin(top);
-    draw_background(graphics, 40, 0, TOP_WIDTH, TOP_HEIGHT);
-
-    C2D_DrawRectSolid(0, 0, 0, 40, TOP_HEIGHT, white);
+    C2D_DrawRectSolid(0, 0, 0, 40, TOP_HEIGHT, WHITE);
 
     u32 green = C2D_Color32(0x00, 0x51, 0x00, 0xFF);
     for (size_t x = 1; x <= 37; x += 3) {
@@ -131,8 +82,66 @@ void draw_main_menu_top(struct graphics_state_t* graphics) {
         C2D_DrawLine(x, 220, green, x + 2, 220, green, 1, 0);
     }
 
+    C2D_DrawRectSolid(7, 209, 0, 26, 2, overlay_tint.corners->color); //colour bar
+
+    C2D_DrawRectSolid(2, 4, 0, 17, 11, BLACK); //todo: battery
+    C2D_DrawRectSolid(21, 1, 0, 16, 16, BLACK); //todo: wireless state
+}
+
+void draw_bevel_box(struct graphics_state_t* graphics, unsigned x, unsigned y, unsigned w, unsigned h, u32 bar1, u32 bar2, u32 border_in, u32 border_out) {
+    u32 const bars[] = {bar1, bar2};
+    for (size_t i = 0; i < (h - 6) / 2; i++) {
+        int y1 = y + i * 2 + 3;
+        int y2 = y + i * 2 + 4;
+        C2D_DrawLine(x + 4, y1, bars[y1 % 2], x + w - 4, y1, bars[y1 % 2], 1, 0);
+        C2D_DrawLine(x + 4, y2, bars[y2 % 2], x + w - 4, y2, bars[y2 % 2], 1, 0);
+    }
+
+    C2D_DrawLine(x + 5, y + 0, border_out, x + w - 4, y + 0, border_out, 1, 0);
+    C2D_DrawLine(x + 5, y + 2, border_in, x + w - 5, y + 2, border_in, 2, 0); //top
+    C2D_DrawLine(x + 5, y + 3, border_out, x + w - 4, y + 3, border_out, 1, 0);
+
+    C2D_DrawLine(x + 0, y + 5, border_out, x + 5, y + 0, border_out, 1, 0);
+    C2D_DrawLine(x + 0, y + 6, border_out, x + 6, y + 0, border_out, 1, 0);
+    C2D_DrawLine(x + 2, y + 6, border_in, x + 7, y + 1, border_in, 2, 0); //top left
+    C2D_DrawLine(x + 3, y + 7, border_out, x + 7, y + 3, border_out, 1, 0);
+
+    C2D_DrawLine(x + w - 6, y + 0, border_out, x + w, y + 6, border_out, 1, 0);
+    C2D_DrawLine(x + w - 5, y + 0, border_out, x + w, y + 5, border_out, 1, 0);
+    C2D_DrawLine(x + w - 7, y + 1, border_in, x + w - 2, y + 6, border_in, 2, 0); //top right
+    C2D_DrawLine(x + w - 7, y + 3, border_out, x + w - 3, y + 7, border_out, 1, 0);
+
+    C2D_DrawLine(x, y + 6, border_out, x, y + h - 6, border_out, 1, 0);
+    C2D_DrawLine(x + 2, y + 5, border_in, x + 2, y + h - 5, border_in, 2, 0); //left side
+    C2D_DrawLine(x + 3, y + 6, border_out, x + 3, y + h - 6, border_out, 1, 0);
+
+    C2D_DrawLine(x + w - 4, y + 6, border_out, x + w - 4, y + h - 6, border_out, 1, 0);
+    C2D_DrawLine(x + w - 2, y + 5, border_in, x + w - 2, y + h - 5, border_in, 2, 0); //right side
+    C2D_DrawLine(x + w - 1, y + 6, border_out, x + w - 1, y + h - 6, border_out, 1, 0);
+
+    C2D_DrawLine(x + 5, y + h - 4, border_out, x + w - 4, y + h - 4, border_out, 1, 0);
+    C2D_DrawLine(x + 5, y + h - 2, border_in, x + w - 5, y + h - 2, border_in, 2, 0); //bottom
+    C2D_DrawLine(x + 5, y + h - 1, border_out, x + w - 4, y + h - 1, border_out, 1, 0);
+
+    C2D_DrawLine(x, y + h - 5, border_out, x + 5, y + h, border_out, 1, 0);
+    C2D_DrawLine(x, y + h - 6, border_out, x + 6, y + h, border_out, 1, 0);
+    C2D_DrawLine(x + 2, y + h - 6, border_in, x + 6, y + h - 2, border_in, 2, 0); //bottom left
+    C2D_DrawLine(x + 3, y + h - 7, border_out, x + 7, y + h - 3, border_out, 1, 0);
+
+    C2D_DrawLine(x + w - 5, y + h, border_out, x + w, y + h - 5, border_out, 1, 0);
+    C2D_DrawLine(x + w - 6, y + h, border_out, x + w, y + h - 6, border_out, 1, 0);
+    C2D_DrawLine(x + w - 6, y + h - 2, border_in, x + w - 2, y + h - 6, border_in, 2, 0); //bottom right
+    C2D_DrawLine(x + w - 7, y + h - 3, border_out, x + w - 3, y + h - 7, border_out, 1, 0);
+}
+
+void draw_main_menu_top(struct graphics_state_t* graphics) {
+    C2D_SceneBegin(top);
+    draw_background(graphics, 40, 0, TOP_WIDTH, TOP_HEIGHT);
+
     draw_top_screen_left(graphics);
-    draw_top_screen_right(graphics);
+    draw_bevel_box(graphics, 360, 0, 40, 240, DARK_GREY, BLACK, ORANGE, BLACK);
+    // draw_bevel_box(graphics, 50, 11, 100, 56, dark_grey, black, white, green);
+    // draw_bevel_box(graphics, 150, 12, 100, 56, dark_grey, black, green, white);
 }
 
 void draw_main_menu_button(size_t idx, float x, float y) {
@@ -148,10 +157,10 @@ void draw_main_menu_button(size_t idx, float x, float y) {
     }
 
     C2D_DrawLine(x + 32, y, top_grey, x + 192, y, top_grey, 1, 0);
-    C2D_DrawLine(x + 191, y + 1, dark_grey, x + 191, y + 32, dark_grey, 1, 0);
-    C2D_DrawLine(x + 190, y + 1, white, x + 190, y + 31, white, 1, 0);
-    C2D_DrawLine(x + 32, y + 30, white, x + 190, y + 30, white, 1, 0);
-    C2D_DrawLine(x + 32, y + 31, black, x + 191, y + 31, black, 1, 0);
+    C2D_DrawLine(x + 191, y + 1, DARK_GREY, x + 191, y + 32, DARK_GREY, 1, 0);
+    C2D_DrawLine(x + 190, y + 1, WHITE, x + 190, y + 31, WHITE, 1, 0);
+    C2D_DrawLine(x + 32, y + 30, WHITE, x + 190, y + 30, WHITE, 1, 0);
+    C2D_DrawLine(x + 32, y + 31, BLACK, x + 191, y + 31, BLACK, 1, 0);
 }
 
 void draw_main_menu_bottom(struct graphics_state_t* graphics) {
@@ -171,11 +180,15 @@ void draw_main_menu_bottom(struct graphics_state_t* graphics) {
     C2D_Sprite* gradient = &gradient_sprites[0];
     for (size_t i = 0; i < BOTTOM_WIDTH / 2; i++) { //gradient top and bottom
         int y = 0;
+        C2D_TopImageTint(&overlay_tint, overlay_tint.corners->color, FADE_TOP);
+        C2D_BottomImageTint(&overlay_tint, overlay_tint.corners->color, FADE_BOTTOM);
         C2D_SpriteSetScale(gradient, 1, 1);
         C2D_SpriteSetPos(gradient, i * 2, y);
         C2D_DrawSpriteTinted(gradient, &overlay_tint);
 
         y = 217;
+        C2D_TopImageTint(&overlay_tint, overlay_tint.corners->color, FADE_BOTTOM);
+        C2D_BottomImageTint(&overlay_tint, overlay_tint.corners->color, FADE_TOP);
         C2D_SpriteSetPos(gradient, i * 2, y);
         C2D_SpriteSetScale(gradient, 1, -1);
         C2D_DrawSpriteTinted(gradient, &overlay_tint);
