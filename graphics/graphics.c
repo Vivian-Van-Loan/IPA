@@ -1,19 +1,13 @@
 #include "graphics.h"
 
+#include "font.h"
 #include "../utils.h"
 #include "../matrix/matrix-client.h"
 
-struct graphics_state_t {
+struct ipa_graphics_state_t {
     ptrdiff_t time_on_menu;
     matrix_menu_t menu;
 };
-
-constexpr u32 WHITE = C2D_Color32c(0xFB, 0xFB, 0xFB, 0xFF);
-constexpr u32 BLACK = C2D_Color32c(0x00, 0x00, 0x00, 0xFF);
-constexpr u32 DARK_GREY = C2D_Color32c(0x49, 0x49, 0x49, 0xFF);
-constexpr u32 MEDIUM_GREY = C2D_Color32c(0xAA, 0xAA, 0xAA, 0xFF);
-constexpr u32 LIGHT_GREY = C2D_Color32c(0xBA, 0xBA, 0xBA, 0xFF);
-constexpr u32 ORANGE = C2D_Color32c(0xFB, 0x69, 0x00, 0xFF);
 
 constexpr float FADE_TOP = 0.25f;
 constexpr float FADE_BOTTOM = 1;
@@ -24,17 +18,31 @@ C2D_SpriteSheet main_sheet;
 C2D_Sprite main_sprites[4];
 C2D_SpriteSheet gradient_sheet;
 C2D_Sprite gradient_sprites[2];
+
+// C2D_Font font;
+// C2D_TextBuf text_buf;
+// C2D_Text text;
+
 C2D_ImageTint overlay_tint;
+
 int init_graphics() {
     gfxInitDefault();
     C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
     C2D_Init(C2D_DEFAULT_MAX_OBJECTS);
     C2D_Prepare();
 
+    // font = C2D_FontLoad("romfs:/resources/font/NDS_FONT.bcfnt");
+    // if (!font) {
+    //     return -1;
+    // }
+    // text_buf = C2D_TextBufNew(8192); //todo: perhaps overkill, adjust later
+    // C2D_TextFontParse(&text, font, text_buf, "Test text to be rendered.\nThe Quick Brown Fox Jumps Over The Lazy Dog");
+    // C2D_TextOptimize(&text);
+
     // consoleInit(GFX_TOP, nullptr);
     top = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
     bottom = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
-    main_sheet = C2D_SpriteSheetLoad("romfs:/gfx/IPA_TEXTURES_MAIN.t3x");
+    main_sheet = C2D_SpriteSheetLoad("romfs:/resources/gfx/IPA_TEXTURES_MAIN.t3x");
     if (!main_sheet) {
         efuncprintf("Failed to load spritesheet\n");
         return -1;
@@ -44,12 +52,7 @@ int init_graphics() {
     }
     // C2D_SpriteSheetFree(main_sheet);
 
-    C2D_SpriteSetPos(main_sprites + 0, 64, 56);
-    C2D_SpriteSetPos(main_sprites + 1, 64, 88);
-    C2D_SpriteSetPos(main_sprites + 2, 64, 120);
-    C2D_SpriteSetPos(main_sprites + 3, 64, 152);
-
-    gradient_sheet = C2D_SpriteSheetLoad("romfs:/gfx/IPA_TEXTURES_GRADIENT.t3x");
+    gradient_sheet = C2D_SpriteSheetLoad("romfs:/resources/gfx/IPA_TEXTURES_GRADIENT.t3x");
     if (!gradient_sheet) {
         efuncprintf("Failed to load spritesheet\n");
         return -1;
@@ -59,6 +62,12 @@ int init_graphics() {
     }
     // C2D_SpriteSheetFree(gradient_sheet);
 
+    int res = init_font();
+    if (res) {
+        efuncprintf("Failed to load font\n");
+        return -1;
+    }
+
     // u32 overlay_colour = C2D_Color32(128, 0, 255, 255);
     u32 overlay_colour = C2D_Color32(0xFF, 0x00, 0x00, 0xFF);
     C2D_PlainImageTint(&overlay_tint, overlay_colour, 0.5f);
@@ -66,14 +75,25 @@ int init_graphics() {
     return 0;
 }
 
-void draw_background(struct graphics_state_t* graphics, unsigned x, unsigned y, unsigned w, unsigned h) {
+void graphics_destroy() {
+    C2D_SpriteSheetFree(main_sheet);
+    C2D_SpriteSheetFree(gradient_sheet);
+    destroy_font();
+    C3D_RenderTargetDelete(top);
+    C3D_RenderTargetDelete(bottom);
+    C2D_Fini();
+    C3D_Fini();
+    gfxExit();
+}
+
+void draw_background(struct ipa_graphics_state_t* graphics, unsigned x, unsigned y, unsigned w, unsigned h) {
     for (size_t i = 0; i < h / 4; i++) {
         C2D_DrawLine(x, i * 4 + (y + 1), MEDIUM_GREY, x + w, i * 4 + (y + 1), MEDIUM_GREY, 3, 0); //thickness is from middle
         C2D_DrawLine(x, i * 4 + (y + 3), LIGHT_GREY, x + w, i * 4 + (y + 3), LIGHT_GREY, 1, 0);
     }
 }
 
-void draw_top_screen_left(struct graphics_state_t* graphics) {
+void draw_top_screen_left(struct ipa_graphics_state_t* graphics) {
     C2D_DrawRectSolid(0, 0, 0, 40, TOP_HEIGHT, WHITE);
 
     u32 green = C2D_Color32(0x00, 0x51, 0x00, 0xFF);
@@ -88,7 +108,7 @@ void draw_top_screen_left(struct graphics_state_t* graphics) {
     C2D_DrawRectSolid(21, 1, 0, 16, 16, BLACK); //todo: wireless state
 }
 
-void draw_bevel_box(struct graphics_state_t* graphics, unsigned x, unsigned y, unsigned w, unsigned h, u32 bar1, u32 bar2, u32 border_in, u32 border_out) {
+void draw_bevel_box(struct ipa_graphics_state_t* graphics, int x, int y, int w, int h, u32 bar1, u32 bar2, u32 border_in, u32 border_out) {
     u32 const bars[] = {bar1, bar2};
     for (size_t i = 0; i < (h - 6) / 2; i++) {
         int y1 = y + i * 2 + 3;
@@ -134,7 +154,7 @@ void draw_bevel_box(struct graphics_state_t* graphics, unsigned x, unsigned y, u
     C2D_DrawLine(x + w - 7, y + h - 3, border_out, x + w - 3, y + h - 7, border_out, 1, 0);
 }
 
-void draw_main_menu_top(struct graphics_state_t* graphics) {
+void draw_main_menu_top(struct ipa_graphics_state_t* graphics) {
     C2D_SceneBegin(top);
     draw_background(graphics, 40, 0, TOP_WIDTH, TOP_HEIGHT);
 
@@ -142,6 +162,9 @@ void draw_main_menu_top(struct graphics_state_t* graphics) {
     draw_bevel_box(graphics, 360, 0, 40, 240, DARK_GREY, BLACK, ORANGE, BLACK);
     // draw_bevel_box(graphics, 50, 11, 100, 56, dark_grey, black, white, green);
     // draw_bevel_box(graphics, 150, 12, 100, 56, dark_grey, black, green, white);
+
+    draw_string(" !\"#$%&'()*+,-.0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`", 2, 50);
+    draw_string("abcdefghijklmnopqrstuvwxyz{|}~æ", 2, 75);
 }
 
 void draw_main_menu_button(size_t idx, float x, float y) {
@@ -163,7 +186,7 @@ void draw_main_menu_button(size_t idx, float x, float y) {
     C2D_DrawLine(x + 32, y + 31, BLACK, x + 191, y + 31, BLACK, 1, 0);
 }
 
-void draw_main_menu_bottom(struct graphics_state_t* graphics) {
+void draw_main_menu_bottom(struct ipa_graphics_state_t* graphics) {
     C2D_SceneBegin(bottom);
     draw_background(graphics, 0, 24, BOTTOM_WIDTH, BOTTOM_HEIGHT);
 
@@ -198,7 +221,7 @@ void draw_main_menu_bottom(struct graphics_state_t* graphics) {
     C2D_DrawLine(0, 216, black, BOTTOM_WIDTH, 216, black, 1, 0);
 }
 
-void draw_main_menu(struct graphics_state_t* graphics) {
+void draw_main_menu(struct ipa_graphics_state_t* graphics) {
     draw_main_menu_top(graphics);
     draw_main_menu_bottom(graphics);
 }
@@ -208,7 +231,7 @@ void draw(matrix_client_t* client) {
         client->graphics_state = malloc(sizeof(*client->graphics_state));
     }
 
-    struct graphics_state_t* graphics = client->graphics_state;
+    struct ipa_graphics_state_t* graphics = client->graphics_state;
     if (client->menu != graphics->menu) {
         graphics->menu = client->menu;
         graphics->time_on_menu = 0;

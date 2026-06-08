@@ -1,5 +1,13 @@
 cmake_minimum_required(VERSION 3.13)
 
+list(APPEND CMAKE_MODULE_PATH
+		"${CMAKE_CURRENT_SOURCE_DIR}/cmake"
+		"${CMAKE_CURRENT_SOURCE_DIR}/resources/gfx/font"
+)
+
+include(CTRFonts)
+include(IPAFont)
+
 project(matrix-client LANGUAGES C VERSION 1.0.0)
 
 set (CMAKE_C_STANDARD 23)
@@ -22,6 +30,8 @@ set(MATRIXC_SRCS
         matrix/matrix-client.c
 		graphics/graphics.c
 		graphics/graphics.h
+		graphics/font.c
+		graphics/font.h
 )
 
 add_executable(${PROJECT_NAME} ${MATRIXC_SRCS})
@@ -57,18 +67,31 @@ dkp_add_asset_target(${PROJECT_NAME}_romfs romfs)
 
 # Texture atlas (example)
 ctr_add_graphics_target(IPA_TEXTURES_MAIN ATLAS
-	INPUTS resources/gfx/main/D.png resources/gfx/main/S.png resources/gfx/main/R.png resources/gfx/main/Gear.png
+		INPUTS resources/gfx/main/D.png resources/gfx/main/S.png resources/gfx/main/R.png resources/gfx/main/Gear.png
 )
 
 ctr_add_graphics_target(IPA_TEXTURES_GRADIENT ATLAS
-	INPUTS resources/gfx/gradient/border.png resources/gfx/gradient/button.png
+		INPUTS resources/gfx/gradient/border.png resources/gfx/gradient/button.png
 )
+
+ipa_build_font_image()
 
 # Install assets to RomFS (uncomment as needed)
 dkp_install_assets(${PROJECT_NAME}_romfs
-	DESTINATION resources/gfx
-	TARGETS IPA_TEXTURES_MAIN IPA_TEXTURES_GRADIENT
+		DESTINATION resources/gfx
+		TARGETS IPA_TEXTURES_MAIN IPA_TEXTURES_GRADIENT
 )
+
+#ctr_add_font_target(NDS_FONT
+#		INPUTS resources/font/NDS12.ttf
+#		OPTIONS --size 10
+#)
+
+#dkp_install_assets(
+#		${PROJECT_NAME}_romfs
+#		DESTINATION resources/font
+#		TARGETS NDS_FONT
+#)
 
 ctr_create_3dsx(${PROJECT_NAME}
         SMDH ${PROJECT_NAME}.smdh

@@ -21,7 +21,7 @@ typedef struct matrix_client_t {
     matrix_login_t login;
     json_t* core_account_data;
     matrix_menu_t menu;
-    struct graphics_state_t* graphics_state;
+    struct ipa_graphics_state_t* graphics_state;
 } matrix_client_t;
 
 int matrix_client_sync_account_data(matrix_client_t* client);
