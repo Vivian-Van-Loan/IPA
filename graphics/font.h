@@ -20,6 +20,8 @@ extern size_t font_size;
 
 int init_font();
 void destroy_font();
-void draw_string(char const* str, int x, int y);
+void draw_string(char const* str, int x, int y, u32 colour);
+
+int get_char_width(wchar_t c);
 
 #endif //MATRIX_CLIENT_FONT_H

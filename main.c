@@ -32,6 +32,8 @@ int main(int argc, char** argv) {
     // matrix_client_sync_account_data(&client);
     // printf("Logged in and synced, good luck reading it\n");
 
+    client.menu = MENU_CHAT;
+
     while (aptMainLoop()) {
         hidScanInput();
 

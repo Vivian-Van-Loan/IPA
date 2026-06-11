@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <limits.h>
 
 #include <citro2d.h>
 
@@ -37,7 +38,7 @@ int init_font() {
     size_t chars_parsed = 0;
     mbstate_t conv = {0};
     while ((line_len = __getline(&lineptr, &n, info)) != -1) {
-        if (lineptr[0] == '/' && lineptr[1] == '/') {
+        if ((lineptr[0] == '/' && lineptr[1] == '/') || lineptr[0] == '\n') {
             continue;
         }
         if (chars_parsed >= font_size) {
@@ -54,7 +55,7 @@ int init_font() {
         size_t offset;
         if (strstr(lineptr, "unknown") == lineptr) {
             offset = strlen("unknown");
-            font_entry->character = (wchar_t)-1;
+            font_entry->character = WCHAR_MAX;
         }  else {
             offset = mbrtowc(&font_entry->character, lineptr, line_len, &conv);
         }
@@ -102,11 +103,11 @@ ipa_fontchar_t* get_fontchar(wchar_t c) {
     return &font[font_size - 1]; //should always be the unknown char
 }
 
-void draw_string(char const* str, int x, int y) {
+void draw_string(char const* str, int x, int y, u32 colour) {
     C2D_ImageTint tint;
-    C2D_PlainImageTint(&tint, BLACK, 1);
+    C2D_PlainImageTint(&tint, colour, 1);
 
-    mbstate_t conv;
+    mbstate_t conv = {0};
     size_t len = strlen(str);
     while (*str) {
         wchar_t c;
@@ -123,4 +124,9 @@ void draw_string(char const* str, int x, int y) {
         C2D_DrawSpriteTinted(&fontchar->glyph, &tint);
         x += fontchar->width + 1;
     }
+}
+
+int get_char_width(wchar_t c) {
+    ipa_fontchar_t* fontchar = get_fontchar(c);
+    return fontchar->width;
 }
