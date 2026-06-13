@@ -274,7 +274,9 @@ void draw_message_box(struct ipa_graphics_state_t* graphics, int x, int y, int w
 
 void draw_chat_room_top(struct matrix_client_t* client) {
     C2D_SceneBegin(top);
-
+    draw_background(client->graphics_state, 40, 0, TOP_WIDTH, TOP_HEIGHT);
+    draw_top_screen_left(client->graphics_state);
+    draw_bevel_box(client->graphics_state, 360, 0, 40, 240, DARK_GREY, BLACK, ORANGE, BLACK);
 }
 
 void draw_keyboard_key(char c, int x, int y) {
@@ -345,9 +347,41 @@ void draw_chat_room_bottom(struct matrix_client_t* client) {
     draw_thin_box(85, 150, 200, 83, DARK_GREY, WHITE, true);
     draw_thin_box(288, 150, 36, 83, DARK_GREY, WHITE, true);
     draw_keyboard();
+
+    C2D_DrawRectSolid(2, 86, 0, 14, 13, MEDIUM_GREY);
+    C2D_DrawRectSolid(20, 86, 0, 14, 13, MEDIUM_GREY);
+    C2D_DrawRectSolid(2, 100, 0, 14, 13, MEDIUM_GREY);
+    C2D_DrawRectSolid(20, 100, 0, 14, 13, MEDIUM_GREY);
+
+    C2D_DrawRectSolid(2, 119, 0, 14, 14, MEDIUM_GREY);
+    C2D_DrawRectSolid(20, 119, 0, 14, 14, MEDIUM_GREY);
+    C2D_DrawRectSolid(2, 134, 0, 14, 14, MEDIUM_GREY);
+    C2D_DrawRectSolid(20, 134, 0, 14, 14, MEDIUM_GREY);
+
+    C2D_DrawRectSolid(2, 154, 0, 14, 14, MEDIUM_GREY);
+    C2D_DrawRectSolid(20, 154, 0, 14, 14, DARK_GREY);
+    C2D_DrawRectSolid(21, 155, 0, 12, 12, ORANGE);
+    C2D_DrawRectSolid(2, 171, 0, 14, 14, MEDIUM_GREY);
+    C2D_DrawRectSolid(20, 171, 0, 14, 14, MEDIUM_GREY);
+    C2D_DrawRectSolid(21, 172, 0, 12, 12, overlay_colour);
+    C2D_DrawRectSolid(2, 188, 0, 14, 14, MEDIUM_GREY);
+    C2D_DrawRectSolid(20, 188, 0, 14, 7, MEDIUM_GREY);
+
+    C2D_DrawRectSolid(20, 205, 0, 14, 14, MEDIUM_GREY);
+    C2D_DrawRectSolid(20, 222, 0, 14, 14, MEDIUM_GREY);
+
+    for (size_t i = 0; i < 192/2; i++) {
+        C2D_DrawLine(17, 48 + i * 2, DARK_GREY, 19, 50 + i * 2, DARK_GREY, 1, 0);
+    }
+    for (size_t i = 0; i < 16 / 2; i++) {
+        C2D_DrawLine(0 + i * 2, 81, DARK_GREY, 1 + i * 2, 81, DARK_GREY, 1, 0);
+        C2D_DrawLine(21 + i * 2, 81, DARK_GREY, 22 + i * 2, 81, DARK_GREY, 1, 0);
+        C2D_DrawLine(0 + i * 2, 150, DARK_GREY, 1 + i * 2, 150, DARK_GREY, 1, 0);
+        C2D_DrawLine(21 + i * 2, 150, DARK_GREY, 22 + i * 2, 150, DARK_GREY, 1, 0);
+    }
 }
 
-void draw_chat_room(struct matrix_client_t* client) {
+void draw_chat_room(matrix_client_t* client) {
     draw_chat_room_top(client);
     draw_chat_room_bottom(client);
 }
@@ -364,8 +398,8 @@ void draw(matrix_client_t* client) {
     }
 
     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
-    C2D_TargetClear(top, C2D_Color32(0xFF, 0, 0, 0xFF));
-    C2D_TargetClear(bottom, C2D_Color32(0xFF, 0, 0, 0xFF));
+    C2D_TargetClear(top, C2D_Color32(0xFF, 0, 0xFF, 0xFF));
+    C2D_TargetClear(bottom, C2D_Color32(0xFF, 0, 0xFF, 0xFF));
 
     switch (client->menu) {
         case MENU_MAIN:
