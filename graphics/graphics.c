@@ -32,14 +32,6 @@ int init_graphics() {
     C2D_Init(C2D_DEFAULT_MAX_OBJECTS);
     C2D_Prepare();
 
-    // font = C2D_FontLoad("romfs:/resources/font/NDS_FONT.bcfnt");
-    // if (!font) {
-    //     return -1;
-    // }
-    // text_buf = C2D_TextBufNew(8192); //todo: perhaps overkill, adjust later
-    // C2D_TextFontParse(&text, font, text_buf, "Test text to be rendered.\nThe Quick Brown Fox Jumps Over The Lazy Dog");
-    // C2D_TextOptimize(&text);
-
     // consoleInit(GFX_TOP, nullptr);
     top = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
     bottom = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
@@ -167,13 +159,12 @@ void draw_main_menu_top(struct ipa_graphics_state_t* graphics) {
     draw_string("abcdefghijklmnopqrstuvwxyz{|}~æ", 2, 75, BLACK);
 }
 
-void draw_main_menu_button(size_t idx, float x, float y) {
+void draw_main_menu_button(C2D_Sprite* button_sprite, float x, float y) { //expects a 32x32 sprite
     C2D_Sprite* gradient = &gradient_sprites[1];
     u32 top_grey = C2D_Color32(0x79, 0x79, 0x79, 0xFF);
 
-    C2D_Sprite* button = main_sprites + idx;
-    C2D_SpriteSetPos(button, x, y);
-    C2D_DrawSprite(button);
+    C2D_SpriteSetPos(button_sprite, x, y);
+    C2D_DrawSprite(button_sprite);
     for (size_t j = 0; j < 79; j++) {
         C2D_SpriteSetPos(gradient, x + 32 + j * 2, y + 1);
         C2D_DrawSprite(gradient);
@@ -195,10 +186,10 @@ void draw_main_menu_bottom(struct ipa_graphics_state_t* graphics) {
     //     // draw_main_menu_button(i, 64, i * 32 + 56);
     // }
     int const speed = 6;
-    draw_main_menu_button(0, 64, 0 * 32 + max(BOTTOM_HEIGHT - (graphics->time_on_menu - speed * 0) * speed, 56));
-    draw_main_menu_button(1, 64, 1 * 32 + max(BOTTOM_HEIGHT - (graphics->time_on_menu - speed * 1) * speed, 56));
-    draw_main_menu_button(2, 64, 2 * 32 + max(BOTTOM_HEIGHT - (graphics->time_on_menu - speed * 2) * speed, 56));
-    draw_main_menu_button(3, 64, 3 * 32 + max(BOTTOM_HEIGHT - (graphics->time_on_menu - speed * 3) * speed, 56));
+    draw_main_menu_button(main_sprites + 0, 64, 0 * 32 + max(BOTTOM_HEIGHT - (graphics->time_on_menu - speed * 0) * speed, 56)); //the 4 main menu icons are first in the tex array
+    draw_main_menu_button(main_sprites + 1, 64, 1 * 32 + max(BOTTOM_HEIGHT - (graphics->time_on_menu - speed * 1) * speed, 56));
+    draw_main_menu_button(main_sprites + 2, 64, 2 * 32 + max(BOTTOM_HEIGHT - (graphics->time_on_menu - speed * 2) * speed, 56));
+    draw_main_menu_button(main_sprites + 3, 64, 3 * 32 + max(BOTTOM_HEIGHT - (graphics->time_on_menu - speed * 3) * speed, 56));
 
     C2D_Sprite* gradient = &gradient_sprites[0];
     C2D_ImageTint overlay_tint;

@@ -13,7 +13,16 @@
 #include "matrix/matrix-utils.h"
 #include "matrix/login.h"
 
+void flush_files() {
+    fflush(stdout);
+    fflush(stderr);
+}
+
 int main(int argc, char** argv) {
+    freopen(SAVE_DIR"stdout.txt", "w", stdout);
+    freopen(SAVE_DIR"stderr.txt", "w", stderr);
+    atexit(flush_files);
+
     int res = init_general();
     if (res) {
         return res;
@@ -28,9 +37,12 @@ int main(int argc, char** argv) {
     }
 
     matrix_client_t client = make_client();
-    // matrix_login_pass(&client.login, "server", "user", "pass", "IPA-testing");
-    // matrix_client_sync_account_data(&client);
-    // printf("Logged in and synced, good luck reading it\n");
+    matrix_login_pass(&client.login, "toasterwaffle.win", "alice", "0VKPXagX96G7Z2", "IPA-testing");
+    matrix_client_sync_account_data(&client);
+    matrix_client_sync_directs(&client);
+
+    matrix_client_sync_dump(&client);
+    printf("Logged in and synced, good luck reading it\n");
 
     client.menu = MENU_CHAT;
 

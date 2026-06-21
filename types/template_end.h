@@ -1,0 +1,2 @@
+#undef TEMPLATE_TYPE
+#undef TEMPLATE_PREFIX

@@ -10,7 +10,8 @@ include(IPAFont)
 
 project(matrix-client LANGUAGES C VERSION 1.0.0)
 
-set (CMAKE_C_STANDARD 23)
+set(CMAKE_C_STANDARD 23)
+#set(CMAKE_C_FLAGS "--std=gnu23")
 
 find_package(PkgConfig)
 pkg_check_modules(curl REQUIRED libcurl)
@@ -32,6 +33,15 @@ set(MATRIXC_SRCS
 		graphics/graphics.h
 		graphics/font.c
 		graphics/font.h
+		types/template_start.h
+		types/template_end.h
+		types/vector.h
+		types/general_types.h
+		types/general_types.c
+		matrix/matrix_user_t.c
+		matrix/matrix_user_t.h
+		matrix/matrix_room_t.c
+		matrix/matrix_room_t.h
 )
 
 add_executable(${PROJECT_NAME} ${MATRIXC_SRCS})
@@ -97,3 +107,9 @@ ctr_create_3dsx(${PROJECT_NAME}
         SMDH ${PROJECT_NAME}.smdh
         ROMFS ${PROJECT_NAME}_romfs  # Uncomment this if using RomFS
 )
+
+#add_custom_command(
+#		TARGET ${PROJECT_NAME}  POST_BUILD
+#		COMMAND ${CMAKE_COMMAND} -E copy
+#		${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.3dsx
+#		${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_debug.3dsx)
