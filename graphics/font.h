@@ -20,7 +20,7 @@ extern size_t font_size;
 
 int init_font();
 void destroy_font();
-void draw_string(char const* str, int x, int y, u32 colour);
+void draw_string(char const* str, int x, int y, u32 colour, float depth);
 
 int get_char_width(wchar_t c);
 

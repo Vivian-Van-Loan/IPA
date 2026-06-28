@@ -75,7 +75,7 @@ int make_account_direct_filter(matrix_client_t const* client) { //rendered usele
 }
 
 int matrix_client_sync_account_data(matrix_client_t* client) {
-    int res;
+    // int res;
     // if (!filter_id) {
     //     res = make_filter(client);
     //     if (res) {
@@ -150,6 +150,9 @@ int matrix_client_sync_directs(matrix_client_t* client) {
     json_object_set_new(room_filter, "timeline", json_object());
     json_t* timeline_filter = json_object_get(room_filter, "timeline");
     json_object_set_new(timeline_filter, "types", json_array());
+    json_object_set_new(timeline_filter, "limit", json_integer(1));
+    types = json_object_get(timeline_filter, "types");
+    json_array_append_new(types, json_string("m.room.message"));
 
     json_object_set_new(room_filter, "ephemeral", json_object());
     json_t* ephemeral_filter = json_object_get(room_filter, "ephemeral");
@@ -208,10 +211,15 @@ int matrix_client_sync_directs(matrix_client_t* client) {
         // if (!room) {
         //     continue;
         // }
-        matrix_room_t room = {.id = strdup(key), .associated_users = vector$matrix_user_t$_new()};
-        json_t* state_events = json_object_get(json_object_get(value_outer, "state"), "events"); //are you kidding me with this format? "yeah object containing only an array." JUST MAKE THE OBJECT THE ARRAY
-        matrix_room_build(&room, state_events);
-        vector$matrix_room_t$_push(&client->rooms, room);
+        matrix_room_t* room = vector$matrix_room_t$_push(&client->rooms, (matrix_room_t){.id = strdup(key), .associated_users = vector$matrix_user_t$_new()});
+        json_t* state_events = json_object_get(json_object_get(value_outer, "state"), "events");
+        json_t* timeline_events = json_object_get(json_object_get(value_outer, "timeline"), "events");
+        matrix_room_build(room, state_events);
+
+        json_array_foreach(timeline_events, index_i, value_inner) {
+            json_t* origin_ts = json_object_get(value_inner, "origin_server_ts");
+            room->last_message_time = json_integer_value(origin_ts);
+        }
     }
 
     for (size_t i = 0; i < client->rooms.count; i++) {
@@ -243,6 +251,7 @@ int matrix_client_sync_directs(matrix_client_t* client) {
             }
         }
     }
+    qsort(client->rooms.data, client->rooms.count, sizeof(matrix_room_t), matrix_room_order);
 
     return 0;
 }

@@ -40,3 +40,14 @@ char* matrix_resolve_homeserver(char const* homeserver_base) {
     json_decref(root);
     return resolved;
 }
+
+char* matrix_download_mxc(matrix_client_t const* client, char const* mxc_url) {
+    char buf[URL_BUFFER_SIZE];
+    char const* stripped = strstr(mxc_url, "mxc://");
+    if (!stripped) {
+        return nullptr;
+    }
+    stripped += sizeof("mxc://") - 1;
+    snprintf(buf, sizeof(buf), "%s/_matrix/client/v1/media/download/%s", client->login.homeserver_resolved, stripped);
+    return http_get_data(buf);
+}

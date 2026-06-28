@@ -8,7 +8,9 @@
 #include "matrix_room_t.h"
 
 typedef enum matrix_menu_t {
-    MENU_MAIN = 0,
+    MENU_NONE = 0,
+
+    MENU_MAIN = 1,
     MENU_DMS,
     MENU_SPACES,
     MENU_ROOMS,

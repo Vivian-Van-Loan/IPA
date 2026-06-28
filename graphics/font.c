@@ -103,7 +103,7 @@ ipa_fontchar_t* get_fontchar(wchar_t c) {
     return &font[font_size - 1]; //should always be the unknown char
 }
 
-void draw_string(char const* str, int x, int y, u32 colour) {
+void draw_string(char const* str, int x, int y, u32 colour, float depth) {
     C2D_ImageTint tint;
     C2D_PlainImageTint(&tint, colour, 1);
 
@@ -121,6 +121,7 @@ void draw_string(char const* str, int x, int y, u32 colour) {
 
         ipa_fontchar_t* fontchar = get_fontchar(c);
         C2D_SpriteSetPos(&fontchar->glyph, x + fontchar->h_offset, y + fontchar->v_offset);
+        C2D_SpriteSetDepth(&fontchar->glyph, depth);
         C2D_DrawSpriteTinted(&fontchar->glyph, &tint);
         x += fontchar->width + 1;
     }

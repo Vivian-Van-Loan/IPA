@@ -12,9 +12,21 @@ typedef struct TEMPLATE_STRUCT {
     TEMPLATE_TYPE* data;
 } TEMPLATE_STRUCT;
 
-static inline void TEMPLATE_FUNC(resize)(TEMPLATE_STRUCT* vec, size_t new_capacity);
+// #ifndef TEMPLATE_IMPLEMENTATION
+TEMPLATE_INLINE TEMPLATE_STRUCT TEMPLATE_FUNC(new)();
+TEMPLATE_INLINE void TEMPLATE_FUNC(double)(TEMPLATE_STRUCT* vec);
+TEMPLATE_INLINE void TEMPLATE_FUNC(free)(TEMPLATE_STRUCT* vec);
+TEMPLATE_INLINE void TEMPLATE_FUNC(free_callback)(TEMPLATE_STRUCT* vec, void (*free_func)(TEMPLATE_TYPE*));
+TEMPLATE_INLINE TEMPLATE_TYPE* TEMPLATE_FUNC(push_empty)(TEMPLATE_STRUCT* vec);
+TEMPLATE_INLINE TEMPLATE_TYPE* TEMPLATE_FUNC(push)(TEMPLATE_STRUCT* vec, TEMPLATE_TYPE value);
+TEMPLATE_INLINE TEMPLATE_TYPE* TEMPLATE_FUNC(get)(TEMPLATE_STRUCT* vec, size_t idx);
+TEMPLATE_INLINE void TEMPLATE_FUNC(remove)(TEMPLATE_STRUCT* vec, size_t idx);
+TEMPLATE_INLINE void TEMPLATE_FUNC(resize)(TEMPLATE_STRUCT* vec, size_t new_capacity);
+TEMPLATE_INLINE void TEMPLATE_FUNC(shrink)(TEMPLATE_STRUCT* vec);
+// #endif
 
-static inline TEMPLATE_STRUCT TEMPLATE_FUNC(new)() {
+// #ifdef TEMPLATE_IMPLEMENTATION
+TEMPLATE_INLINE TEMPLATE_STRUCT TEMPLATE_FUNC(new)() {
     TEMPLATE_STRUCT vec = {
         .count = 0,
         .capacity = 0,
@@ -23,7 +35,7 @@ static inline TEMPLATE_STRUCT TEMPLATE_FUNC(new)() {
     return vec;
 }
 
-static inline void TEMPLATE_FUNC(double)(TEMPLATE_STRUCT* vec) {
+TEMPLATE_INLINE void TEMPLATE_FUNC(double)(TEMPLATE_STRUCT* vec) {
     size_t new_capacity = vec->capacity * 2;
     if (new_capacity == 0) {
         new_capacity = 1;
@@ -31,21 +43,21 @@ static inline void TEMPLATE_FUNC(double)(TEMPLATE_STRUCT* vec) {
     TEMPLATE_FUNC(resize)(vec, new_capacity);
 }
 
-static inline void TEMPLATE_FUNC(free)(TEMPLATE_STRUCT* vec) {
+TEMPLATE_INLINE void TEMPLATE_FUNC(free)(TEMPLATE_STRUCT* vec) {
     free(vec->data);
     vec->data = nullptr;
     vec->count = 0;
     vec->capacity = 0;
 }
 
-static inline void TEMPLATE_FUNC(free_callback)(TEMPLATE_STRUCT* vec, void (*free_func)(TEMPLATE_TYPE*)) {
+TEMPLATE_INLINE void TEMPLATE_FUNC(free_callback)(TEMPLATE_STRUCT* vec, void (*free_func)(TEMPLATE_TYPE*)) {
     for (size_t i = 0; i < vec->count; i++) {
         free_func(vec->data + i);
     }
     TEMPLATE_FUNC(free)(vec);
 }
 
-static inline TEMPLATE_TYPE* TEMPLATE_FUNC(push_empty)(TEMPLATE_STRUCT* vec) {
+TEMPLATE_INLINE TEMPLATE_TYPE* TEMPLATE_FUNC(push_empty)(TEMPLATE_STRUCT* vec) {
     if (vec->count == vec->capacity) {
         TEMPLATE_FUNC(double)(vec);
     }
@@ -53,25 +65,29 @@ static inline TEMPLATE_TYPE* TEMPLATE_FUNC(push_empty)(TEMPLATE_STRUCT* vec) {
     return &vec->data[vec->count - 1];
 }
 
-static inline TEMPLATE_TYPE* TEMPLATE_FUNC(push)(TEMPLATE_STRUCT* vec, TEMPLATE_TYPE value) {
+TEMPLATE_INLINE TEMPLATE_TYPE* TEMPLATE_FUNC(push)(TEMPLATE_STRUCT* vec, TEMPLATE_TYPE value) {
     TEMPLATE_TYPE* new = TEMPLATE_FUNC(push_empty)(vec);
+#ifdef TEMPLATE_TYPE_IS_ARRAY
+    memcpy(*new, value, sizeof(TEMPLATE_TYPE));
+#else
     *new = value;
+#endif
     return new;
 }
 
-static inline void* TEMPLATE_FUNC(get)(TEMPLATE_STRUCT* vec, size_t idx) {
+TEMPLATE_INLINE TEMPLATE_TYPE* TEMPLATE_FUNC(get)(TEMPLATE_STRUCT* vec, size_t idx) {
     if (idx >= vec->count) {
         return nullptr;
     }
     return vec->data + idx;
 }
 
-static inline void TEMPLATE_FUNC(remove)(TEMPLATE_STRUCT* vec, size_t idx) {
+TEMPLATE_INLINE void TEMPLATE_FUNC(remove)(TEMPLATE_STRUCT* vec, size_t idx) {
     memcpy(vec->data + idx, vec->data + (idx + 1), (vec->count - idx - 1) * sizeof(TEMPLATE_TYPE));
     vec->count--;
 }
 
-static inline void TEMPLATE_FUNC(resize)(TEMPLATE_STRUCT* vec, size_t new_capacity) {
+TEMPLATE_INLINE void TEMPLATE_FUNC(resize)(TEMPLATE_STRUCT* vec, size_t new_capacity) {
     vec->capacity = new_capacity;
     if (vec->capacity < vec->count) {
         vec->count = vec->capacity;
@@ -84,8 +100,9 @@ static inline void TEMPLATE_FUNC(resize)(TEMPLATE_STRUCT* vec, size_t new_capaci
     }
 }
 
-static inline void TEMPLATE_FUNC(shrink)(TEMPLATE_STRUCT* vec) {
+TEMPLATE_INLINE void TEMPLATE_FUNC(shrink)(TEMPLATE_STRUCT* vec) {
     TEMPLATE_FUNC(resize)(vec, vec->count);
 }
+// #endif
 
 #include "template_end.h"

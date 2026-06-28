@@ -8,6 +8,18 @@ void matrix_room_destroy(matrix_room_t* room) {
     memset(room, 0, sizeof(*room));
 }
 
+int matrix_room_order(void const* lhs_void, void const* rhs_void) {
+    matrix_room_t const* lhs = lhs_void;
+    matrix_room_t const* rhs = rhs_void;
+    //so this is actually backwards, however it is more useful to have larger values seen as lesser and as such earlier in the array
+    if (lhs->last_message_time > rhs->last_message_time) {
+        return -1;
+    } else if (lhs->last_message_time < rhs->last_message_time) {
+        return 1;
+    }
+    return 0;
+}
+
 matrix_user_t* matrix_room_get_user(matrix_room_t* room, char const* user_id) {
     if (!room || !user_id) {
         return nullptr;
@@ -24,7 +36,7 @@ matrix_user_t* matrix_room_get_user(matrix_room_t* room, char const* user_id) {
 void matrix_room_build(matrix_room_t* room, json_t* events) {
     size_t index_i;
     json_t* value_inner;
-    json_array_foreach(events, index_i, value_inner) {
+    json_array_foreach(events, index_i, value_inner) { //are you kidding me with this format? "yeah object containing only an array." JUST MAKE THE OBJECT THE ARRAY
         char const* type = json_string_value(json_object_get(value_inner, "type"));
         json_t* content = json_object_get(value_inner, "content");
         if (strcmp(type, "m.room.name") == 0) {

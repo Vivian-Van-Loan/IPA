@@ -37,14 +37,17 @@ int main(int argc, char** argv) {
     }
 
     matrix_client_t client = make_client();
-    matrix_login_pass(&client.login, "toasterwaffle.win", "alice", "0VKPXagX96G7Z2", "IPA-testing");
+    matrix_login_from_save(&client.login);
+    if (!client.login.logged_in) {
+        matrix_login_pass(&client.login, "toasterwaffle.win", "alice", "0VKPXagX96G7Z2", "IPA-testing");
+    }
     matrix_client_sync_account_data(&client);
     matrix_client_sync_directs(&client);
 
     matrix_client_sync_dump(&client);
     printf("Logged in and synced, good luck reading it\n");
 
-    client.menu = MENU_CHAT;
+    client.menu = MENU_DMS;
 
     while (aptMainLoop()) {
         hidScanInput();

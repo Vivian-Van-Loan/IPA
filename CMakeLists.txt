@@ -18,6 +18,7 @@ pkg_check_modules(curl REQUIRED libcurl)
 pkg_check_modules(jansson REQUIRED jansson)
 #pkg_check_modules(citro2d REQUIRED IMPORTED_TARGET citro2d)
 #pkg_check_modules(citro3d REQUIRED IMPORTED_TARGET citro3d)
+add_subdirectory(submodules)
 
 set(MATRIXC_SRCS
         main.c
@@ -42,6 +43,11 @@ set(MATRIXC_SRCS
 		matrix/matrix_user_t.h
 		matrix/matrix_room_t.c
 		matrix/matrix_room_t.h
+		implementations.c
+		graphics/images.c
+		graphics/images.h
+		types/hash.c
+		types/hash.h
 )
 
 add_executable(${PROJECT_NAME} ${MATRIXC_SRCS})
@@ -56,6 +62,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE
         include
         ${curl_INCLUDE_DIRS}
         ${jansson_INCLUDE_DIRS}
+		submodules
+		submodules/stb
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
@@ -63,6 +71,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         ${jansson_LIBRARIES}
 		citro2d
 		citro3d
+		webpdecoder
+		rg_etc1
 )
 
 ctr_generate_smdh(${PROJECT_NAME}.smdh

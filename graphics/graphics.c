@@ -1,16 +1,27 @@
 #include "graphics.h"
 
 #include "font.h"
+#include "images.h"
 #include "../utils.h"
 #include "../matrix/matrix-client.h"
+#include "../matrix/matrix-utils.h"
 
 struct ipa_graphics_state_t {
     ptrdiff_t time_on_menu;
     matrix_menu_t menu;
+    ptrdiff_t selection;
+    ptrdiff_t scroll_pos;
+    ptrdiff_t scroll_to_pos;
+    ptrdiff_t anim_start_time;
+    hash_map$img_path$ipa_image_t$ image_map;
+    vector$pair$ipa_image_t_p$size_t$$ vram_images;
 };
 
 constexpr float FADE_TOP = 0.25f;
 constexpr float FADE_BOTTOM = 1;
+constexpr int SPEED = 6;
+constexpr int BIG_AVATAR_SIZE = 32;
+constexpr int SMALL_AVATAR_SIZE = 16;
 
 C3D_RenderTarget* top;
 C3D_RenderTarget* bottom;
@@ -19,14 +30,18 @@ C2D_Sprite main_sprites[4];
 C2D_SpriteSheet gradient_sheet;
 C2D_Sprite gradient_sprites[2];
 
-// C2D_Font font;
-// C2D_TextBuf text_buf;
-// C2D_Text text;
-
 // C2D_ImageTint overlay_tint;
 u32 overlay_colour;
 
 int init_graphics() {
+    make_dirs(IMG_CACHE_DIR);
+    make_dirs(AVATAR_CACHE_DIR);
+    img_path buf;
+    snprintf(buf, sizeof(buf), "%s%zux%zu/", AVATAR_CACHE_DIR, BIG_AVATAR_SIZE, BIG_AVATAR_SIZE);
+    make_dirs(buf);
+    snprintf(buf, sizeof(buf), "%s%zux%zu/", AVATAR_CACHE_DIR, SMALL_AVATAR_SIZE, SMALL_AVATAR_SIZE);
+    make_dirs(buf);
+
     gfxInitDefault();
     C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
     C2D_Init(C2D_DEFAULT_MAX_OBJECTS);
@@ -76,6 +91,73 @@ void graphics_destroy() {
     C2D_Fini();
     C3D_Fini();
     gfxExit();
+}
+
+void* download_image_data(matrix_client_t const* client, char const* url, enum image_format* format_out, size_t* data_size) {
+    char* out = matrix_download_mxc(client, url);
+    if (!out) {
+        return nullptr;
+    }
+    struct curl_header* header;
+    CURLHcode h = curl_easy_header(curl_handle, "Content-Type", 0, CURLH_HEADER, -1, &header);
+    if (h != CURLHE_OK) {
+        efuncprintf("Failed to get content type\n");
+        free(out);
+        return nullptr;
+    }
+    curl_off_t len;
+    CURLcode c = curl_easy_getinfo(curl_handle, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &len);
+    if (c != CURLE_OK) {
+        efuncprintf("Failed to get content length\n");
+        free(out);
+        return nullptr;
+    }
+    *data_size = len;
+
+    *format_out = IMAGE_FORMAT_UNKNOWN;
+    if (strcasecmp(header->value, "image/png") == 0) {
+        *format_out = IMAGE_FORMAT_PNG;
+    } else if (strcasecmp(header->value, "image/jpeg") == 0) {
+        *format_out = IMAGE_FORMAT_JPG;
+    } else if (strcasecmp(header->value, "image/gif") == 0) {
+        *format_out = IMAGE_FORMAT_GIF;
+    } else if (strcasecmp(header->value, "image/webp") == 0) {
+        *format_out = IMAGE_FORMAT_WEBP;
+    } else if (strcasecmp(header->value, "image/bmp") == 0) {
+        *format_out = IMAGE_FORMAT_BMP;
+    }
+
+    return out;
+}
+
+ipa_image_t* get_avatar(matrix_client_t* client, char const* mxc_url, size_t width, size_t height) {
+    if (!mxc_url) {
+        return nullptr;
+    }
+
+    ipa_image_t* image = lookup_avatar(&client->graphics_state->image_map, mxc_url, width, height);
+    if (!image) {
+        //todo: we aren't checking disk cache with this yet
+        size_t len;
+        enum image_format format;
+        void* data = download_image_data(client, mxc_url, &format, &len);
+        if (!data) {
+            return nullptr;
+        }
+        img_path path;
+        form_avatar_path(path, strrchr(mxc_url, '/') + 1, width, height);
+        ipa_image_t temp = load_resize_compress_save(data, len, format, width, height, path);
+        free(data);
+        if (!temp.data) {
+            return nullptr;
+        }
+        image = hash_map$img_path$ipa_image_t$_add(&client->graphics_state->image_map, path, temp);
+        if (!image || !image->data) {
+            destroy_image(&temp);
+            return nullptr;
+        }
+    }
+    return image;
 }
 
 void draw_background(struct ipa_graphics_state_t* graphics, unsigned x, unsigned y, unsigned w, unsigned h) {
@@ -155,41 +237,91 @@ void draw_main_menu_top(struct ipa_graphics_state_t* graphics) {
     // draw_bevel_box(graphics, 50, 11, 100, 56, dark_grey, black, white, green);
     // draw_bevel_box(graphics, 150, 12, 100, 56, dark_grey, black, green, white);
 
-    draw_string(" !\"#$%&'()*+,-.0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`", 2, 50, BLACK);
-    draw_string("abcdefghijklmnopqrstuvwxyz{|}~æ", 2, 75, BLACK);
+    draw_string(" !\"#$%&'()*+,-.0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`", 2, 50, BLACK, 0);
+    draw_string("abcdefghijklmnopqrstuvwxyz{|}~æ", 2, 75, BLACK, 0);
 }
 
-void draw_main_menu_button(C2D_Sprite* button_sprite, float x, float y) { //expects a 32x32 sprite
+void draw_main_menu_button(C2D_Sprite* button_sprite, float x, float y, char const* text) { //expects a 32x32 sprite
     C2D_Sprite* gradient = &gradient_sprites[1];
     u32 top_grey = C2D_Color32(0x79, 0x79, 0x79, 0xFF);
 
-    C2D_SpriteSetPos(button_sprite, x, y);
-    C2D_DrawSprite(button_sprite);
+    C2D_DrawRectSolid(x + 1, y + 1, 0, 30, 30, WHITE); //avatar backdrop
+
+    if (button_sprite) {
+        C2D_SpriteSetPos(button_sprite, x, y);
+        C2D_SpriteSetDepth(button_sprite, 0);
+        C2D_DrawSprite(button_sprite);
+    } else {
+        //todo: idk some nice fallback or something
+    }
     for (size_t j = 0; j < 79; j++) {
         C2D_SpriteSetPos(gradient, x + 32 + j * 2, y + 1);
         C2D_DrawSprite(gradient);
     }
+    C2D_DrawLine(x, y, DARK_GREY, x, y + 32, DARK_GREY, 1, 0.05f); //avatar box
+    C2D_DrawLine(x + 32, y, DARK_GREY, x + 32, y + 32, DARK_GREY, 1, 0.05f);
+    C2D_DrawLine(x + 32, y + 31, BLACK, x, y + 31, BLACK, 1, 0.05f);
+    C2D_DrawLine(x, y + 32, DARK_GREY, x, y, DARK_GREY, 1, 0.05f);
 
     C2D_DrawLine(x + 32, y, top_grey, x + 192, y, top_grey, 1, 0);
     C2D_DrawLine(x + 191, y + 1, DARK_GREY, x + 191, y + 32, DARK_GREY, 1, 0);
     C2D_DrawLine(x + 190, y + 1, WHITE, x + 190, y + 31, WHITE, 1, 0);
     C2D_DrawLine(x + 32, y + 30, WHITE, x + 190, y + 30, WHITE, 1, 0);
     C2D_DrawLine(x + 32, y + 31, BLACK, x + 191, y + 31, BLACK, 1, 0);
+
+    draw_string(text, x + 36, y + 12, DARK_GREY, 0);
 }
 
-void draw_main_menu_bottom(struct ipa_graphics_state_t* graphics) {
-    C2D_SceneBegin(bottom);
-    draw_background(graphics, 0, 24, BOTTOM_WIDTH, BOTTOM_HEIGHT);
+void draw_main_menu_select(float x, float y) {
+    u32 overlay_colour_75 = C2D_Color_new_alpha(overlay_colour, 0xBF);
 
-    // for (size_t i = 0; i < 4; i++) {
-    //     draw_main_menu_button(i, 64, i * 32 + max(BOTTOM_HEIGHT - graphics->time_on_menu * 3, 56));
-    //     // draw_main_menu_button(i, 64, i * 32 + 56);
-    // }
-    int const speed = 6;
-    draw_main_menu_button(main_sprites + 0, 64, 0 * 32 + max(BOTTOM_HEIGHT - (graphics->time_on_menu - speed * 0) * speed, 56)); //the 4 main menu icons are first in the tex array
-    draw_main_menu_button(main_sprites + 1, 64, 1 * 32 + max(BOTTOM_HEIGHT - (graphics->time_on_menu - speed * 1) * speed, 56));
-    draw_main_menu_button(main_sprites + 2, 64, 2 * 32 + max(BOTTOM_HEIGHT - (graphics->time_on_menu - speed * 2) * speed, 56));
-    draw_main_menu_button(main_sprites + 3, 64, 3 * 32 + max(BOTTOM_HEIGHT - (graphics->time_on_menu - speed * 3) * speed, 56));
+    C2D_DrawLine(x + 1, y + 0, WHITE, x + 11, y + 0, WHITE, 1, 0); //top left
+    C2D_DrawLine(x + 10, y + 0, WHITE, x + 10, y + 5, WHITE, 1, 0);
+    C2D_DrawLine(x + 10, y + 4, WHITE, x + 4, y + 4, WHITE, 1, 0);
+    C2D_DrawLine(x + 4, y + 4, WHITE, x + 4, y + 11, WHITE, 1, 0);
+    C2D_DrawLine(x + 4, y + 10, WHITE, x + 0, y + 10, WHITE, 1, 0);
+    C2D_DrawLine(x + 0, y + 11, WHITE, x + 0, y + 1, WHITE, 1, 0);
+    C2D_DrawRectSolid(x + 1, y + 1, 0, 9, 3, DARK_GREY);
+    C2D_DrawRectSolid(x + 1, y + 1, 0, 9, 3, overlay_colour_75);
+    C2D_DrawRectSolid(x + 1, y + 4, 0, 3, 6, DARK_GREY);
+    C2D_DrawRectSolid(x + 1, y + 4, 0, 3, 6, overlay_colour_75);
+
+    C2D_DrawLine(x + 191, y + 0, WHITE, x + 201, y + 0, WHITE, 1, 0); //top right
+    C2D_DrawLine(x + 201, y + 1, WHITE, x + 201, y + 11, WHITE, 1, 0);
+    C2D_DrawLine(x + 201, y + 10, WHITE, x + 197, y + 10, WHITE, 1, 0);
+    C2D_DrawLine(x + 197, y + 11, WHITE, x + 197, y + 4, WHITE, 1, 0);
+    C2D_DrawLine(x + 197, y + 4, WHITE, x + 191, y + 4, WHITE, 1, 0);
+    C2D_DrawLine(x + 191, y + 5, WHITE, x + 191, y + 0, WHITE, 1, 0);
+    C2D_DrawRectSolid(x + 192, y + 1, 0, 9, 3, DARK_GREY);
+    C2D_DrawRectSolid(x + 192, y + 1, 0, 9, 3, overlay_colour_75);
+    C2D_DrawRectSolid(x + 198, y + 4, 0, 3, 6, DARK_GREY);
+    C2D_DrawRectSolid(x + 198, y + 4, 0, 3, 6, overlay_colour_75);
+
+    C2D_DrawLine(x + 197, y + 31, WHITE, x + 201, y + 31, WHITE, 1, 0); //bot right
+    C2D_DrawLine(x + 201, y + 31, WHITE, x + 201, y + 41, WHITE, 1, 0);
+    C2D_DrawLine(x + 201, y + 41, WHITE, x + 191, y + 41, WHITE, 1, 0);
+    C2D_DrawLine(x + 191, y + 41, WHITE, x + 191, y + 37, WHITE, 1, 0);
+    C2D_DrawLine(x + 191, y + 37, WHITE, x + 197, y + 37, WHITE, 1, 0);
+    C2D_DrawLine(x + 197, y + 38, WHITE, x + 197, y + 31, WHITE, 1, 0);
+    C2D_DrawRectSolid(x + 192, y + 38, 0, 9, 3, DARK_GREY);
+    C2D_DrawRectSolid(x + 192, y + 38, 0, 9, 3, overlay_colour_75);
+    C2D_DrawRectSolid(x + 198, y + 32, 0, 3, 6, DARK_GREY);
+    C2D_DrawRectSolid(x + 198, y + 32, 0, 3, 6, overlay_colour_75);
+
+    C2D_DrawLine(x + 0, y + 31, WHITE, x + 4, y + 31, WHITE, 1, 0);
+    C2D_DrawLine(x + 4, y + 31, WHITE, x + 4, y + 37, WHITE, 1, 0);
+    C2D_DrawLine(x + 4, y + 37, WHITE, x + 10, y + 37, WHITE, 1, 0);
+    C2D_DrawLine(x + 10, y + 37, WHITE, x + 10, y + 42, WHITE, 1, 0);
+    C2D_DrawLine(x + 10, y + 41, WHITE, x + 1, y + 41, WHITE, 1, 0);
+    C2D_DrawLine(x + 0, y + 41, WHITE, x + 0, y + 31, WHITE, 1, 0);
+    C2D_DrawRectSolid(x + 1, y + 38, 0, 9, 3, DARK_GREY);
+    C2D_DrawRectSolid(x + 1, y + 38, 0, 9, 3, overlay_colour_75);
+    C2D_DrawRectSolid(x + 1, y + 32, 0, 3, 6, DARK_GREY);
+    C2D_DrawRectSolid(x + 1, y + 32, 0, 3, 6, overlay_colour_75);
+}
+
+void draw_main_shared(struct ipa_graphics_state_t* graphics) {
+    draw_background(graphics, 0, 24, BOTTOM_WIDTH, BOTTOM_HEIGHT);
 
     C2D_Sprite* gradient = &gradient_sprites[0];
     C2D_ImageTint overlay_tint;
@@ -199,6 +331,7 @@ void draw_main_menu_bottom(struct ipa_graphics_state_t* graphics) {
         C2D_BottomImageTint(&overlay_tint, overlay_colour, FADE_BOTTOM);
         C2D_SpriteSetScale(gradient, 1, 1);
         C2D_SpriteSetPos(gradient, i * 2, y);
+        C2D_SpriteSetDepth(gradient, 0.1f);
         C2D_DrawSpriteTinted(gradient, &overlay_tint);
 
         y = 217;
@@ -206,16 +339,105 @@ void draw_main_menu_bottom(struct ipa_graphics_state_t* graphics) {
         C2D_BottomImageTint(&overlay_tint, overlay_colour, FADE_TOP);
         C2D_SpriteSetPos(gradient, i * 2, y);
         C2D_SpriteSetScale(gradient, 1, -1);
+        C2D_SpriteSetDepth(gradient, 0.1f);
         C2D_DrawSpriteTinted(gradient, &overlay_tint);
     }
     u32 black = C2D_Color32(0, 0, 0, 0xFF);
-    C2D_DrawLine(0, 23, black, BOTTOM_WIDTH, 23, black, 1, 0);
-    C2D_DrawLine(0, 216, black, BOTTOM_WIDTH, 216, black, 1, 0);
+    C2D_DrawLine(0, 23, black, BOTTOM_WIDTH, 23, black, 1, 0.1f);
+    C2D_DrawLine(0, 216, black, BOTTOM_WIDTH, 216, black, 1, 0.1f);
+
+    draw_string("Choose an Option.", 117, 6, BLACK, 0.1f);
+}
+
+void draw_main_menu_bottom(struct ipa_graphics_state_t* graphics) {
+    C2D_SceneBegin(bottom);
+    draw_main_shared(graphics);
+
+    // for (size_t i = 0; i < 4; i++) {
+    //     draw_main_menu_button(i, 64, i * 32 + max(BOTTOM_HEIGHT - graphics->time_on_menu * 3, 56));
+    //     // draw_main_menu_button(i, 64, i * 32 + 56);
+    // }
+    draw_main_menu_button(main_sprites + 0, 64, 0 * 32 + max(BOTTOM_HEIGHT - (graphics->time_on_menu - SPEED * 0) * SPEED, 56), "Direct Messages"); //the 4 main menu icons are first in the tex array
+    draw_main_menu_button(main_sprites + 1, 64, 1 * 32 + max(BOTTOM_HEIGHT - (graphics->time_on_menu - SPEED * 1) * SPEED, 56), "Spaces");
+    draw_main_menu_button(main_sprites + 2, 64, 2 * 32 + max(BOTTOM_HEIGHT - (graphics->time_on_menu - SPEED * 2) * SPEED, 56), "Rooms");
+    draw_main_menu_button(main_sprites + 3, 64, 3 * 32 + max(BOTTOM_HEIGHT - (graphics->time_on_menu - SPEED * 3) * SPEED, 56), "Settings");
+    draw_main_menu_select(59, graphics->selection * 32 + max(BOTTOM_HEIGHT - 5 - (graphics->time_on_menu - SPEED * graphics->selection) * SPEED, 51));
 }
 
 void draw_main_menu(struct ipa_graphics_state_t* graphics) {
     draw_main_menu_top(graphics);
     draw_main_menu_bottom(graphics);
+}
+
+void draw_select_menu_bottom(matrix_client_t* client) {
+    C2D_SceneBegin(bottom);
+
+    struct ipa_graphics_state_t* graphics = client->graphics_state;
+    ptrdiff_t const num_rooms = client->rooms.count;
+    // if (graphics->selection < 0) {
+    //     graphics->selection = 0;
+    //     graphics->scroll_pos = 0;
+    //     graphics->scroll_to_pos = 0;
+    //     // graphics->scroll_to_pos = min(num_rooms * AVATAR_SIZE, 6 * AVATAR_SIZE);
+    // }
+    if (graphics->scroll_pos > graphics->scroll_to_pos) {
+        graphics->scroll_pos -= SPEED;
+        if (graphics->scroll_pos < graphics->scroll_to_pos) {
+            graphics->scroll_pos = graphics->scroll_to_pos;
+        }
+    } else if (graphics->scroll_pos < graphics->scroll_to_pos) {
+        graphics->scroll_pos += SPEED;
+        if (graphics->scroll_pos > graphics->scroll_to_pos) {
+            graphics->scroll_pos = graphics->scroll_to_pos;
+        }
+    }
+
+    draw_main_shared(graphics);
+
+    ptrdiff_t const min_scroll_idx = max(0, graphics->scroll_pos - (6 * BIG_AVATAR_SIZE));
+    while (graphics->vram_images.count && graphics->vram_images.data[0].second < min_scroll_idx) {
+        ipa_image_t* image = vector$pair$ipa_image_t_p$size_t$$_get(&graphics->vram_images, 0)->first;
+        image_unload_vram(image);
+        vector$pair$ipa_image_t_p$size_t$$_remove(&graphics->vram_images, 0); //image is still backed by the hashmap so other data need not be freed
+    }
+
+    //a maximum of 6 buttons fit within margins (exact fit as well)
+    //thus if we need to display a room with idx >= 6, we need to scroll the list
+    //multiply graphics state scroll_to_pos by height of the buttons (32px)
+    //scroll to at speed, thus the first idx to be drawn would be scroll_pos / height
+    //gonna have to special case < 6 for vert centring but that's fine
+    size_t start_idx = max(0, graphics->scroll_pos / 32);
+    size_t end_idx = min(num_rooms, graphics->scroll_pos / 32 + 6); //todo: because of things scrolling off it will be possible to have 7, gotta either use that or case it
+    if (start_idx > end_idx) {
+        size_t temp = start_idx;
+        start_idx = end_idx;
+        end_idx = temp;
+    }
+    for (size_t i = start_idx; i < end_idx; i++) { //"make sure images are in the array" loop
+        matrix_room_t* room = &client->rooms.data[i - start_idx];
+        if (!room->avatar_url) {
+            continue;
+        }
+        if (graphics->vram_images.count < i - start_idx + 1) { // || graphics->vram_images.data[i - start_idx].second != i - start_idx) {
+            ipa_image_t* image = vector$pair$ipa_image_t_p$size_t$$_push(&graphics->vram_images, (pair$ipa_image_t_p$size_t$){get_avatar(client, room->avatar_url, BIG_AVATAR_SIZE, BIG_AVATAR_SIZE), i - start_idx})->first;
+            image_load_vram(image);
+        }
+    }
+
+    for (size_t i = start_idx; i < end_idx; i++) { //draw loop
+        size_t i_0 = i - start_idx;
+        matrix_room_t* room = &client->rooms.data[i_0];
+        C2D_Sprite* sprite = nullptr;
+        if (graphics->vram_images.data[i_0].first) {
+            sprite = graphics->vram_images.data[i_0].first->sprite;
+        }
+        draw_main_menu_button(sprite, 64, i_0 * 32 + 24, room->name);
+    }
+}
+
+void draw_select_menu(matrix_client_t* client) {
+    draw_main_menu_top(client->graphics_state);
+    draw_select_menu_bottom(client);
 }
 
 void draw_thin_box(int x, int y, int w, int h, u32 outline, u32 inside, bool fill) {
@@ -272,7 +494,7 @@ void draw_chat_room_top(struct matrix_client_t* client) {
 
 void draw_keyboard_key(char c, int x, int y) {
     int char_width = get_char_width(c);
-    draw_string((char const[]){c, 0}, x + (15 - char_width) / 2, y, SUPER_DARK_GREY);
+    draw_string((char const[]){c, 0}, x + (15 - char_width) / 2, y, SUPER_DARK_GREY, 0);
 }
 
 void draw_keyboard() { //todo: add a keyboard enum
@@ -379,13 +601,19 @@ void draw_chat_room(matrix_client_t* client) {
 
 void draw(matrix_client_t* client) {
     if (!client->graphics_state) {
-        client->graphics_state = malloc(sizeof(*client->graphics_state));
+        client->graphics_state = calloc(1, sizeof(*client->graphics_state));
     }
 
     struct ipa_graphics_state_t* graphics = client->graphics_state;
     if (client->menu != graphics->menu) {
         graphics->menu = client->menu;
         graphics->time_on_menu = 0;
+        graphics->selection = 0;
+        graphics->scroll_pos = 0;
+        graphics->scroll_to_pos = 0;
+        graphics->anim_start_time = 0;
+
+        //todo: clearout the vram images, consider what to do about the hashmap
     }
 
     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
@@ -397,10 +625,9 @@ void draw(matrix_client_t* client) {
             draw_main_menu(graphics);
             break;
         case MENU_DMS:
-            break;
         case MENU_SPACES:
-            break;
         case MENU_ROOMS:
+            draw_select_menu(client);
             break;
         case MENU_SETTINGS:
             break;

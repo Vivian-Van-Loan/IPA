@@ -105,6 +105,14 @@ int make_dirs(char const* path) { //WILL NOT CREATE THE LAST PART AS DIR UNLESS 
     return 0;
 }
 
+size_t next_power_of_two(size_t x) {
+    size_t y = 1;
+    while (y < x) {
+        y <<= 1;
+    }
+    return y;
+}
+
 int download_file(char const* url, char const* path) {
     int res = make_dirs(path);
     if (res)
@@ -194,6 +202,25 @@ int download(char const* url) {
     return 0;
 }
 
+void* download_to_data(char const* url) {
+    // printf("URL: %s\n", url);
+    curl_write_result_t result = {0};
+    result.data = malloc(DOWNLOAD_BUFFER_SIZE);
+    result.max_size = DOWNLOAD_BUFFER_SIZE;
+
+    curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, write_response);
+    curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, &result);
+    int status = download(url);
+    if (status)
+        goto error;
+
+    return result.data;
+
+    error:
+        free(result.data);
+    return nullptr;
+}
+
 char* download_to_string(char const* url) {
     // printf("URL: %s\n", url);
     curl_write_result_t result = {0};
@@ -219,6 +246,11 @@ error:
 char* http_get_string(char const* url) {
     curl_easy_setopt(curl_handle, CURLOPT_HTTPGET, 1);
     return download_to_string(url);
+}
+
+void* http_get_data(char const* url) {
+    curl_easy_setopt(curl_handle, CURLOPT_HTTPGET, 1);
+    return download_to_data(url);
 }
 
 int get_file(char const* url, char const* path) {

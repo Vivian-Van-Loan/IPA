@@ -1,0 +1,9 @@
+[submodule "submodules/stb"]
+	path = submodules/stb
+	url = https://github.com/nothings/stb
+[submodule "submodules/libwebp"]
+	path = submodules/libwebp
+	url = https://github.com/webmproject/libwebp
+[submodule "submodules/rg-etc1/rg-etc1-true"]
+	path = submodules/rg-etc1/rg-etc1-true
+	url = https://github.com/richgel999/rg-etc1
