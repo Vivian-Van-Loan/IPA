@@ -132,6 +132,7 @@ void destroy_image(ipa_image_t* image) {
 
 //https://github.com/Cruel/3dstex/blob/5cdd9a149239a54242368e604810ed0de6ae040c/src/Encoder.cpp#L203
 void encode_etc1_block(size_t block_x, size_t block_y, size_t width, size_t height, size_t width_og, size_t height_og, unsigned char const* rgba, unsigned char** block_out) {
+    enum image_format target_format = IMAGE_FORMAT_ETC1A4;
     unsigned int const* rgba32 = (unsigned int*) rgba;
     uint64_t block = 0; //god do I HATE this, I should really reorganize this into a standard 8 unsigned char array
     unsigned int pixels[4 * 4] = {0};
@@ -146,7 +147,8 @@ void encode_etc1_block(size_t block_x, size_t block_y, size_t width, size_t heig
     for (size_t y = 0; y < 4; y++) {
         for (size_t x = 0; x < 4; x++) {
             size_t x_pos = block_x + x;
-            size_t y_pos = height - 1 - (block_y + y);
+            // size_t y_pos = height - 1 - (block_y + y);
+            size_t y_pos = (block_y + y);
 
             if (x_pos < width_og && y_pos < height_og) {
                 pixels[y * 4 + x] = rgba32[y_pos * width_og + x_pos];
@@ -154,20 +156,25 @@ void encode_etc1_block(size_t block_x, size_t block_y, size_t width, size_t heig
             }
 
             //ETC1A4 stuff
-            x_pos = block_x + y;
-            y_pos = height - 1 - (block_y + x);
-            alpha = 0;
-            if (x_pos < width_og && y_pos < height_og) {
-                alpha = rgba[(y_pos * width_og + x_pos) * 4 + 3];
+            if (target_format == IMAGE_FORMAT_ETC1A4) {
+                x_pos = block_x + y;
+                // y_pos = height - 1 - (block_y + x);
+                y_pos = (block_y + x);
+                alpha = 0;
+                if (x_pos < width_og && y_pos < height_og) {
+                    alpha = rgba[(y_pos * width_og + x_pos) * 4 + 3];
+                }
+                alpha >>= 4;
+                block |= ((uint64_t)alpha) << (alpha_count * 4);
+                alpha_count++;
             }
-            alpha >>= 4;
-            block |= ((uint64_t)alpha) << (alpha_count * 4);
-            alpha_count++;
         }
     }
     //also ETC1A4 stff
-    memcpy(*block_out, &block, sizeof(uint64_t));
-    *block_out += sizeof(uint64_t);
+    if (target_format == IMAGE_FORMAT_ETC1A4) {
+        memcpy(*block_out, &block, sizeof(uint64_t));
+        *block_out += sizeof(uint64_t);
+    }
 
     pack_etc1_block(&block, pixels, ETC_MEDIUM_QUALITY, false);
     block = __bswap64(block);
@@ -264,7 +271,7 @@ ipa_image_t load_resize_compress_save(unsigned char const* input, size_t len, en
 }
 
 void image_load_vram(ipa_image_t* image) {
-    if (!image || image->in_vram || !image->data || (image->format != IMAGE_FORMAT_ETC1A4)) {
+    if (!image || image->in_vram || !image->data || (image->format != IMAGE_FORMAT_ETC1 && image->format != IMAGE_FORMAT_ETC1A4)) {
         return;
     }
     if (!image->sprite) { //unloading from vram won't actually free the sprite pointer in the event reuse is needed
@@ -278,12 +285,12 @@ void image_load_vram(ipa_image_t* image) {
     image_c2d.subtex = subtex;
     subtex->width = image->width;
     subtex->height = image->height;
-    subtex->left = 0;
-    subtex->top = 0;
-    subtex->right = (float)width_2 / image->width;
-    subtex->bottom = (float)height_2 / image->height;
+    subtex->left   = 0.0f;
+    subtex->right  = (float)image->width  / width_2;
+    subtex->top    = (float)image->height / height_2;
+    subtex->bottom = 0.0f;
 
-    C3D_TexInit(image_c2d.tex, width_2, height_2, GPU_ETC1A4);
+    C3D_TexInit(image_c2d.tex, width_2, height_2, image->format == IMAGE_FORMAT_ETC1A4 ? GPU_ETC1A4 : GPU_ETC1);
     C3D_TexSetFilter(image_c2d.tex, GPU_NEAREST, GPU_NEAREST);
     image_c2d.tex->border = C2D_Color32c(0xFF, 0xFF, 0xFF, 0xFF);
     C3D_TexSetWrap(image_c2d.tex, GPU_CLAMP_TO_BORDER, GPU_CLAMP_TO_BORDER);
