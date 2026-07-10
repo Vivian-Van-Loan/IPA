@@ -5,6 +5,8 @@
 
 #include <curl/curl.h>
 
+#include "types/general_types.h"
+
 #define DOWNLOAD_BUFFER_SIZE (2048 * 1024) //2048kB
 #define URL_BUFFER_SIZE (2048)
 #define CACERT_PATH "sdmc:/config/ssl/cacert.pem" //stolen from universal updater, which means they will probably usually keep it updated for me
@@ -36,6 +38,14 @@ typedef struct curl_write_result_t {
     size_t max_size;
 } curl_write_result_t;
 
+#define TEMPLATE_TYPE_K alloc_str
+#define TEMPLATE_TYPE_V long
+#include "types/pair.h"
+
+#define TEMPLATE_TYPE_K alloc_void
+#define TEMPLATE_TYPE_V long
+#include "types/pair.h"
+
 int init_general();
 int init_curl();
 void destroy_curl();
@@ -50,10 +60,10 @@ int download_file(char const* url, char const* path);
 int update_root_ca();
 
 size_t write_response(void* ptr, size_t size, size_t nmemb, void* stream); //used as a callback for curl easy function
-char* http_get_string(char const* url);
-void* http_get_data(char const* url);
-int http_get_file(char const* url, char const* path);
-char* post_json_string(char const* url, char const* json);
-int post_json_file(char const* url, char const* json, char const* path);
+pair$alloc_str$long$ http_get_string(char const* url);
+pair$alloc_void$long$ http_get_data(char const* url);
+long http_get_file(char const* url, char const* path);
+pair$alloc_str$long$ post_json_string(char const* url, char const* json);
+long post_json_file(char const* url, char const* json, char const* path);
 
 #endif //MATRIX_CLIENT_UTILS_H

@@ -9,3 +9,5 @@
 #include "matrix/matrix_user_t.h"
 #include "graphics/images.h"
 #include "graphics/graphics.h"
+#include "utils.h"
+#include "matrix/matrix-utils.h"

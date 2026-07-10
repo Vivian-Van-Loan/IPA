@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
     }
 
     matrix_client_t client = make_client();
-    matrix_login_from_save(&client.login);
+    matrix_login_from_save(&client.login, false);
     if (!client.login.logged_in) {
         matrix_login_pass(&client.login, "toasterwaffle.win", "alice", "0VKPXagX96G7Z2", "IPA-testing");
     }

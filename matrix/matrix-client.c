@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "matrix-utils.h"
 #include "../utils.h"
 
 char* account_direct_filter_id = nullptr;
@@ -26,14 +27,14 @@ json_t* make_empty_filter() {
     return filter_json;
 }
 
-char* install_filter(matrix_client_t const* client, json_t const* filter_json) {
+char* install_filter(matrix_client_t* client, json_t const* filter_json) {
     char* ret = nullptr;
     char* json_str = json_dumps(filter_json, JSON_COMPACT);
     printf("%s\n", json_str);
 
     char buf[URL_BUFFER_SIZE];
     snprintf(buf, sizeof(buf), "%s/_matrix/client/v3/user/%s/filter", client->login.homeserver_resolved, client->login.user_id);
-    char* response_str = post_json_string(buf, json_str);
+    char* response_str = matrix_post_json_string(&client->login, buf, json_str);
     free(json_str);
     json_t* response = nullptr;
     if (!response_str) {
@@ -58,7 +59,7 @@ char* install_filter(matrix_client_t const* client, json_t const* filter_json) {
     return ret;
 }
 
-int make_account_direct_filter(matrix_client_t const* client) { //rendered useless, keeping for testing or building future filters
+int make_account_direct_filter(matrix_client_t* client) { //rendered useless, keeping for testing or building future filters
     json_t* filter_json = make_empty_filter();
     json_t* account_filter = json_object_get(filter_json, "account_data");
     json_object_set_new(account_filter, "types", json_array());
@@ -69,7 +70,7 @@ int make_account_direct_filter(matrix_client_t const* client) { //rendered usele
     json_decref(filter_json);
     if (!account_direct_filter_id) {
         efuncprintf("Failed to install direct filter\n");
-        return  -1;
+        return -1;
     }
     return 0;
 }
@@ -89,7 +90,7 @@ int matrix_client_sync_account_data(matrix_client_t* client) {
     snprintf(buf, sizeof(buf), "%s/_matrix/client/v3/sync?filter=%s", client->login.homeserver_resolved, filter_url);
     free(filter_url);
 
-    char* account_data_str = http_get_string(buf);
+    char* account_data_str = matrix_get_string(&client->login, buf);
     if (!account_data_str) {
         efuncprintf("Failed to download sync json\n");
         return -1;
@@ -120,7 +121,7 @@ int matrix_client_sync_directs(matrix_client_t* client) {
     snprintf(buf, sizeof(buf), "%s/_matrix/client/v3/sync?filter=%s", client->login.homeserver_resolved, account_direct_filter_id);
     // snprintf(buf, sizeof(buf), "%s/_matrix/client/v3/sync", client->login.homeserver_resolved);
 
-    char* response_str = http_get_string(buf);
+    char* response_str = matrix_get_string(&client->login, buf);
     if (!response_str) {
         efuncprintf("Failed to download sync json\n");
         return -1;
@@ -188,7 +189,7 @@ int matrix_client_sync_directs(matrix_client_t* client) {
     free(filter_value);
 
     char const* ROOMS_PATH = SAVE_DIR"directs_rooms.json";
-    int res = http_get_file(buf, ROOMS_PATH);
+    int res = matrix_get_file(&client->login, buf, ROOMS_PATH);
     if (res) {
         efuncprintf("Failed to download directs rooms json\n");
         return res;
@@ -260,7 +261,7 @@ int matrix_client_sync_dump(matrix_client_t* client) {
     char buf[URL_BUFFER_SIZE];
     snprintf(buf, sizeof(buf), "%s/_matrix/client/v3/sync", client->login.homeserver_resolved);
 
-    int res = http_get_file(buf, SAVE_DIR"sync_dump.json");
+    int res = matrix_get_file(&client->login, buf, SAVE_DIR"sync_dump.json");
     return res;
 }
 

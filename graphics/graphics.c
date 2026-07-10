@@ -93,26 +93,21 @@ void graphics_destroy() {
     gfxExit();
 }
 
-void* download_image_data(matrix_client_t const* client, char const* url, enum image_format* format_out, size_t* data_size) {
-    char* out = matrix_download_mxc(client, url);
-    if (!out) {
-        return nullptr;
+pair$alloc_void$size_t$ download_image_data(matrix_client_t* client, char const* url, enum image_format* format_out) {
+    pair$alloc_void$size_t$ out = matrix_download_mxc(client, url);
+    if (!out.first) {
+        out.second = 0;
+        return out;
     }
     struct curl_header* header;
     CURLHcode h = curl_easy_header(curl_handle, "Content-Type", 0, CURLH_HEADER, -1, &header);
     if (h != CURLHE_OK) {
         efuncprintf("Failed to get content type\n");
-        free(out);
-        return nullptr;
+        free(out.first);
+        out.first = nullptr;
+        out.second = 0;
+        return out;
     }
-    curl_off_t len;
-    CURLcode c = curl_easy_getinfo(curl_handle, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &len);
-    if (c != CURLE_OK) {
-        efuncprintf("Failed to get content length\n");
-        free(out);
-        return nullptr;
-    }
-    *data_size = len;
 
     *format_out = IMAGE_FORMAT_UNKNOWN;
     if (strcasecmp(header->value, "image/png") == 0) {
@@ -138,16 +133,15 @@ ipa_image_t* get_avatar(matrix_client_t* client, char const* mxc_url, size_t wid
     ipa_image_t* image = lookup_avatar(&client->graphics_state->image_map, mxc_url, width, height);
     if (!image) {
         //todo: we aren't checking disk cache with this yet
-        size_t len;
         enum image_format format;
-        void* data = download_image_data(client, mxc_url, &format, &len);
-        if (!data) {
+        pair$alloc_void$size_t$ data = download_image_data(client, mxc_url, &format);
+        if (!data.first) {
             return nullptr;
         }
         img_path path;
         form_avatar_path(path, strrchr(mxc_url, '/') + 1, width, height);
-        ipa_image_t temp = load_resize_compress_save(data, len, format, width, height, path);
-        free(data);
+        ipa_image_t temp = load_resize_compress_save(data.first, data.second, format, width, height, path);
+        free(data.first);
         if (!temp.data) {
             return nullptr;
         }
@@ -275,49 +269,49 @@ void draw_main_menu_button(C2D_Sprite* button_sprite, float x, float y, char con
 void draw_main_menu_select(float x, float y) {
     u32 overlay_colour_75 = C2D_Color_new_alpha(overlay_colour, 0xBF);
 
-    C2D_DrawLine(x + 1, y + 0, WHITE, x + 11, y + 0, WHITE, 1, 0); //top left
-    C2D_DrawLine(x + 10, y + 0, WHITE, x + 10, y + 5, WHITE, 1, 0);
-    C2D_DrawLine(x + 10, y + 4, WHITE, x + 4, y + 4, WHITE, 1, 0);
-    C2D_DrawLine(x + 4, y + 4, WHITE, x + 4, y + 11, WHITE, 1, 0);
-    C2D_DrawLine(x + 4, y + 10, WHITE, x + 0, y + 10, WHITE, 1, 0);
-    C2D_DrawLine(x + 0, y + 11, WHITE, x + 0, y + 1, WHITE, 1, 0);
-    C2D_DrawRectSolid(x + 1, y + 1, 0, 9, 3, DARK_GREY);
-    C2D_DrawRectSolid(x + 1, y + 1, 0, 9, 3, overlay_colour_75);
-    C2D_DrawRectSolid(x + 1, y + 4, 0, 3, 6, DARK_GREY);
-    C2D_DrawRectSolid(x + 1, y + 4, 0, 3, 6, overlay_colour_75);
+    C2D_DrawLine(x + 1, y + 0, WHITE, x + 11, y + 0, WHITE, 1, 0.1f); //top left
+    C2D_DrawLine(x + 10, y + 0, WHITE, x + 10, y + 5, WHITE, 1, 0.1f);
+    C2D_DrawLine(x + 10, y + 4, WHITE, x + 4, y + 4, WHITE, 1, 0.1f);
+    C2D_DrawLine(x + 4, y + 4, WHITE, x + 4, y + 11, WHITE, 1, 0.1f);
+    C2D_DrawLine(x + 4, y + 10, WHITE, x + 0, y + 10, WHITE, 1, 0.1f);
+    C2D_DrawLine(x + 0, y + 11, WHITE, x + 0, y + 1, WHITE, 1, 0.1f);
+    C2D_DrawRectSolid(x + 1, y + 1, 0.1f, 9, 3, DARK_GREY);
+    C2D_DrawRectSolid(x + 1, y + 1, 0.1f, 9, 3, overlay_colour_75);
+    C2D_DrawRectSolid(x + 1, y + 4, 0.1f, 3, 6, DARK_GREY);
+    C2D_DrawRectSolid(x + 1, y + 4, 0.1f, 3, 6, overlay_colour_75);
 
-    C2D_DrawLine(x + 191, y + 0, WHITE, x + 201, y + 0, WHITE, 1, 0); //top right
-    C2D_DrawLine(x + 201, y + 1, WHITE, x + 201, y + 11, WHITE, 1, 0);
-    C2D_DrawLine(x + 201, y + 10, WHITE, x + 197, y + 10, WHITE, 1, 0);
-    C2D_DrawLine(x + 197, y + 11, WHITE, x + 197, y + 4, WHITE, 1, 0);
-    C2D_DrawLine(x + 197, y + 4, WHITE, x + 191, y + 4, WHITE, 1, 0);
-    C2D_DrawLine(x + 191, y + 5, WHITE, x + 191, y + 0, WHITE, 1, 0);
-    C2D_DrawRectSolid(x + 192, y + 1, 0, 9, 3, DARK_GREY);
-    C2D_DrawRectSolid(x + 192, y + 1, 0, 9, 3, overlay_colour_75);
-    C2D_DrawRectSolid(x + 198, y + 4, 0, 3, 6, DARK_GREY);
-    C2D_DrawRectSolid(x + 198, y + 4, 0, 3, 6, overlay_colour_75);
+    C2D_DrawLine(x + 191, y + 0, WHITE, x + 201, y + 0, WHITE, 1, 0.1f); //top right
+    C2D_DrawLine(x + 201, y + 1, WHITE, x + 201, y + 11, WHITE, 1, 0.1f);
+    C2D_DrawLine(x + 201, y + 10, WHITE, x + 197, y + 10, WHITE, 1, 0.1f);
+    C2D_DrawLine(x + 197, y + 11, WHITE, x + 197, y + 4, WHITE, 1, 0.1f);
+    C2D_DrawLine(x + 197, y + 4, WHITE, x + 191, y + 4, WHITE, 1, 0.1f);
+    C2D_DrawLine(x + 191, y + 5, WHITE, x + 191, y + 0, WHITE, 1, 0.1f);
+    C2D_DrawRectSolid(x + 192, y + 1, 0.1f, 9, 3, DARK_GREY);
+    C2D_DrawRectSolid(x + 192, y + 1, 0.1f, 9, 3, overlay_colour_75);
+    C2D_DrawRectSolid(x + 198, y + 4, 0.1f, 3, 6, DARK_GREY);
+    C2D_DrawRectSolid(x + 198, y + 4, 0.1f, 3, 6, overlay_colour_75);
 
-    C2D_DrawLine(x + 197, y + 31, WHITE, x + 201, y + 31, WHITE, 1, 0); //bot right
-    C2D_DrawLine(x + 201, y + 31, WHITE, x + 201, y + 41, WHITE, 1, 0);
-    C2D_DrawLine(x + 201, y + 41, WHITE, x + 191, y + 41, WHITE, 1, 0);
-    C2D_DrawLine(x + 191, y + 41, WHITE, x + 191, y + 37, WHITE, 1, 0);
-    C2D_DrawLine(x + 191, y + 37, WHITE, x + 197, y + 37, WHITE, 1, 0);
-    C2D_DrawLine(x + 197, y + 38, WHITE, x + 197, y + 31, WHITE, 1, 0);
-    C2D_DrawRectSolid(x + 192, y + 38, 0, 9, 3, DARK_GREY);
-    C2D_DrawRectSolid(x + 192, y + 38, 0, 9, 3, overlay_colour_75);
-    C2D_DrawRectSolid(x + 198, y + 32, 0, 3, 6, DARK_GREY);
-    C2D_DrawRectSolid(x + 198, y + 32, 0, 3, 6, overlay_colour_75);
+    C2D_DrawLine(x + 197, y + 31, WHITE, x + 201, y + 31, WHITE, 1, 0.1f); //bot right
+    C2D_DrawLine(x + 201, y + 31, WHITE, x + 201, y + 41, WHITE, 1, 0.1f);
+    C2D_DrawLine(x + 201, y + 41, WHITE, x + 191, y + 41, WHITE, 1, 0.1f);
+    C2D_DrawLine(x + 191, y + 41, WHITE, x + 191, y + 37, WHITE, 1, 0.1f);
+    C2D_DrawLine(x + 191, y + 37, WHITE, x + 197, y + 37, WHITE, 1, 0.1f);
+    C2D_DrawLine(x + 197, y + 38, WHITE, x + 197, y + 31, WHITE, 1, 0.1f);
+    C2D_DrawRectSolid(x + 192, y + 38, 0.1f, 9, 3, DARK_GREY);
+    C2D_DrawRectSolid(x + 192, y + 38, 0.1f, 9, 3, overlay_colour_75);
+    C2D_DrawRectSolid(x + 198, y + 32, 0.1f, 3, 6, DARK_GREY);
+    C2D_DrawRectSolid(x + 198, y + 32, 0.1f, 3, 6, overlay_colour_75);
 
-    C2D_DrawLine(x + 0, y + 31, WHITE, x + 4, y + 31, WHITE, 1, 0);
-    C2D_DrawLine(x + 4, y + 31, WHITE, x + 4, y + 37, WHITE, 1, 0);
-    C2D_DrawLine(x + 4, y + 37, WHITE, x + 10, y + 37, WHITE, 1, 0);
-    C2D_DrawLine(x + 10, y + 37, WHITE, x + 10, y + 42, WHITE, 1, 0);
-    C2D_DrawLine(x + 10, y + 41, WHITE, x + 1, y + 41, WHITE, 1, 0);
-    C2D_DrawLine(x + 0, y + 41, WHITE, x + 0, y + 31, WHITE, 1, 0);
-    C2D_DrawRectSolid(x + 1, y + 38, 0, 9, 3, DARK_GREY);
-    C2D_DrawRectSolid(x + 1, y + 38, 0, 9, 3, overlay_colour_75);
-    C2D_DrawRectSolid(x + 1, y + 32, 0, 3, 6, DARK_GREY);
-    C2D_DrawRectSolid(x + 1, y + 32, 0, 3, 6, overlay_colour_75);
+    C2D_DrawLine(x + 0, y + 31, WHITE, x + 4, y + 31, WHITE, 1, 0.1f);
+    C2D_DrawLine(x + 4, y + 31, WHITE, x + 4, y + 37, WHITE, 1, 0.1f);
+    C2D_DrawLine(x + 4, y + 37, WHITE, x + 10, y + 37, WHITE, 1, 0.1f);
+    C2D_DrawLine(x + 10, y + 37, WHITE, x + 10, y + 42, WHITE, 1, 0.1f);
+    C2D_DrawLine(x + 10, y + 41, WHITE, x + 1, y + 41, WHITE, 1, 0.1f);
+    C2D_DrawLine(x + 0, y + 41, WHITE, x + 0, y + 31, WHITE, 1, 0.1f);
+    C2D_DrawRectSolid(x + 1, y + 38, 0.1f, 9, 3, DARK_GREY);
+    C2D_DrawRectSolid(x + 1, y + 38, 0.1f, 9, 3, overlay_colour_75);
+    C2D_DrawRectSolid(x + 1, y + 32, 0.1f, 3, 6, DARK_GREY);
+    C2D_DrawRectSolid(x + 1, y + 32, 0.1f, 3, 6, overlay_colour_75);
 }
 
 void draw_main_shared(struct ipa_graphics_state_t* graphics) {
@@ -331,7 +325,7 @@ void draw_main_shared(struct ipa_graphics_state_t* graphics) {
         C2D_BottomImageTint(&overlay_tint, overlay_colour, FADE_BOTTOM);
         C2D_SpriteSetScale(gradient, 1, 1);
         C2D_SpriteSetPos(gradient, i * 2, y);
-        C2D_SpriteSetDepth(gradient, 0.1f);
+        C2D_SpriteSetDepth(gradient, 0.25f);
         C2D_DrawSpriteTinted(gradient, &overlay_tint);
 
         y = 217;
@@ -339,14 +333,14 @@ void draw_main_shared(struct ipa_graphics_state_t* graphics) {
         C2D_BottomImageTint(&overlay_tint, overlay_colour, FADE_TOP);
         C2D_SpriteSetPos(gradient, i * 2, y);
         C2D_SpriteSetScale(gradient, 1, -1);
-        C2D_SpriteSetDepth(gradient, 0.1f);
+        C2D_SpriteSetDepth(gradient, 0.25f);
         C2D_DrawSpriteTinted(gradient, &overlay_tint);
     }
     u32 black = C2D_Color32(0, 0, 0, 0xFF);
-    C2D_DrawLine(0, 23, black, BOTTOM_WIDTH, 23, black, 1, 0.1f);
-    C2D_DrawLine(0, 216, black, BOTTOM_WIDTH, 216, black, 1, 0.1f);
+    C2D_DrawLine(0, 23, black, BOTTOM_WIDTH, 23, black, 1, 0.25f);
+    C2D_DrawLine(0, 216, black, BOTTOM_WIDTH, 216, black, 1, 0.25f);
 
-    draw_string("Choose an Option.", 117, 6, BLACK, 0.1f);
+    draw_string("Choose an Option.", 117, 6, BLACK, 0.25f);
 }
 
 void draw_main_menu_bottom(struct ipa_graphics_state_t* graphics) {
@@ -406,14 +400,14 @@ void draw_select_menu_bottom(matrix_client_t* client) {
     //multiply graphics state scroll_to_pos by height of the buttons (32px)
     //scroll to at speed, thus the first idx to be drawn would be scroll_pos / height
     //gonna have to special case < 6 for vert centring but that's fine
-    size_t start_idx = max(0, graphics->scroll_pos / 32);
-    size_t end_idx = min(num_rooms, graphics->scroll_pos / 32 + 6); //todo: because of things scrolling off it will be possible to have 7, gotta either use that or case it
+    ptrdiff_t start_idx = max(0, graphics->scroll_pos / 32);
+    ptrdiff_t end_idx = min(num_rooms, graphics->scroll_pos / 32 + 6); //todo: because of things scrolling off it will be possible to have 7, gotta either use that or case it
     if (start_idx > end_idx) {
-        size_t temp = start_idx;
+        ptrdiff_t temp = start_idx;
         start_idx = end_idx;
         end_idx = temp;
     }
-    for (size_t i = start_idx; i < end_idx; i++) { //"make sure images are in the array" loop
+    for (ptrdiff_t i = start_idx; i < end_idx; i++) { //"make sure images are in the array" loop
         matrix_room_t* room = &client->rooms.data[i - start_idx];
         if (!room->avatar_url) {
             continue;
@@ -424,14 +418,19 @@ void draw_select_menu_bottom(matrix_client_t* client) {
         }
     }
 
-    for (size_t i = start_idx; i < end_idx; i++) { //draw loop
-        size_t i_0 = i - start_idx;
+    int button_y_start = 24;
+    for (ptrdiff_t i = start_idx; i < end_idx; i++) { //draw loop
+        ptrdiff_t i_0 = i - start_idx;
         matrix_room_t* room = &client->rooms.data[i_0];
         C2D_Sprite* sprite = nullptr;
         if (graphics->vram_images.data[i_0].first) {
             sprite = graphics->vram_images.data[i_0].first->sprite;
         }
-        draw_main_menu_button(sprite, 64, i_0 * 32 + 24, room->name);
+        draw_main_menu_button(sprite, 64, i_0 * 32 + max(BOTTOM_HEIGHT - (graphics->time_on_menu - SPEED * i_0) * SPEED, button_y_start), room->name);
+    }
+    if (graphics->selection >= start_idx && graphics->selection < end_idx) {
+        ptrdiff_t idx = graphics->selection - start_idx;
+        draw_main_menu_select(59, idx * 32 + max(BOTTOM_HEIGHT - 5 - (graphics->time_on_menu - SPEED * graphics->selection) * SPEED, button_y_start - 3));
     }
 }
 

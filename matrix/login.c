@@ -20,10 +20,35 @@ void matrix_login_dump_refresh(matrix_login_t const* login) {
         return;
     }
     fprintf(f, "%s\n%s\n%s\n%s\n", login->user_id, login->access_token, login->refresh_token, login->device_id);
+    fflush(f);
     fclose(f);
 }
 
-void matrix_login_from_save(matrix_login_t* login) {
+int curl_add_auth(char const* auth_token) {
+    char buf[URL_BUFFER_SIZE];
+    snprintf(buf, sizeof(buf), "Authorization: Bearer %s", auth_token);
+    int res = curl_add_header(buf);
+    if (res) {
+        efuncprintf("Failed to add access token to curl headers\n");
+    }
+    return res;
+}
+
+int check_access_token(matrix_login_t* login, char const* homeserver_base, char const* user, char const* token) {
+    login->logged_in = false;
+    login->homeserver_resolved = matrix_resolve_homeserver(homeserver_base);
+    if (!login->homeserver_resolved) {
+        efuncprintf("Failed to resolve homeserver to a matrix location\n");
+        return -1;
+    }
+    login->user_id = strdup(user);
+
+    //todo: find a good API to test login against
+
+    return 0;
+}
+
+void matrix_login_from_save(matrix_login_t* login, bool force_refresh) {
     FILE* f = fopen(REFRESH_SAVE, "r");
     if (!f) {
         efuncprintf("Failed to open access.txt\n");
@@ -36,7 +61,7 @@ void matrix_login_from_save(matrix_login_t* login) {
     char* homeserver = nullptr;
     char* user = nullptr;
     char* refresh_token = nullptr;
-    // char* access_token = nullptr;
+    char* access_token = nullptr;
     char* device_id = nullptr;
     bool failed = false;
     while ((line_len = __getline(&lineptr, &n, f)) != -1) {
@@ -54,7 +79,7 @@ void matrix_login_from_save(matrix_login_t* login) {
                 homeserver = strdup(colon);
             }
         } else if (line == 1) {
-            // access_token = strdup(lineptr);
+            access_token = strdup(lineptr);
         } else if (line == 2) {
             refresh_token = strdup(lineptr);
         } else if (line == 3) {
@@ -69,14 +94,31 @@ void matrix_login_from_save(matrix_login_t* login) {
     fclose(f);
     if (!failed) {
         login->device_id = strdup(device_id);
-        matrix_login_refresh(login, homeserver, user, refresh_token);
+        if (force_refresh) {
+            matrix_login_refresh(login, homeserver, user, refresh_token);
+        } else {
+            if (check_access_token(login, homeserver, user, access_token) == 0) {
+                login->access_token = strdup(access_token);
+                login->refresh_token = strdup(refresh_token);
+                login->homeserver = strdup(homeserver);
+                login->user_id = strdup(user);
+                int res = curl_add_auth(login->access_token);
+                if (res) {
+                    matrix_login_destroy(login);
+                    return;
+                }
+                login->logged_in = true;
+            } else {
+                matrix_login_refresh(login, homeserver, user, refresh_token);
+            }
+        }
     } else {
         login->logged_in = false;
     }
     free(homeserver);
     free(user);
     free(refresh_token);
-    // free(access_token);
+    free(access_token);
     free(device_id);
 }
 
@@ -93,7 +135,16 @@ void matrix_login_refresh(matrix_login_t* login, char const* homeserver_base, ch
     json_auto_t* root = json_object();
     json_object_set_new(root, "refresh_token", json_string(refresh_token));
     char* json_str = json_dumps(root, JSON_COMPACT);
-    char* response_str = post_json_string(buf, json_str);
+    pair$alloc_str$long$ pair = post_json_string(buf, json_str);
+    if (pair.second != 200 || !pair.first) {
+        efuncprintf("Failed to refresh access token\n");
+        matrix_login_destroy(login);
+        free(json_str);
+        free(pair.first);
+        return;
+    }
+
+    char* response_str = pair.first;
     json_auto_t* response = json_loads(response_str, 0, nullptr);
     free(json_str);
     free(response_str);
@@ -107,10 +158,8 @@ void matrix_login_refresh(matrix_login_t* login, char const* homeserver_base, ch
     login->access_token = strdup(json_string_value(access_token));
     login->refresh_token = strdup(json_string_value(refresh_token_new));
     matrix_login_dump_refresh(login);
-    snprintf(buf, sizeof(buf), "Authorization: Bearer %s", login->access_token);
-    int res = curl_add_header(buf);
+    int res = curl_add_auth(login->access_token);
     if (res) {
-        efuncprintf("Failed to add access token to curl headers\n");
         matrix_login_destroy(login);
         return;
     }
@@ -145,9 +194,10 @@ void matrix_login_pass(matrix_login_t* login, char const* homeserver_base, char 
 
     char buf[URL_BUFFER_SIZE];
     snprintf(buf, sizeof(buf), "%s/_matrix/client/v3/login", login->homeserver_resolved);
-    response_str = post_json_string(buf, json_str);
+    pair$alloc_str$long$ pair = post_json_string(buf, json_str);
+    response_str = pair.first;
     // printf("Response: %s\n", response_str);
-    if (!response_str) {
+    if (pair.second != 200 || !response_str) {
         efuncprintf("Failed to POST and download login\n");
         goto exit;
     }
@@ -186,10 +236,8 @@ void matrix_login_pass(matrix_login_t* login, char const* homeserver_base, char 
         login->refresh_token = nullptr;
     }
 
-    snprintf(buf, sizeof(buf), "Authorization: Bearer %s", login->access_token);
-    int res = curl_add_header(buf);
+    int res = curl_add_auth(login->access_token);
     if (res) {
-        efuncprintf("Failed to add access token to curl headers\n");
         goto exit;
     }
 

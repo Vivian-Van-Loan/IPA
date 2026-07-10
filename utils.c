@@ -40,7 +40,6 @@ int init_curl() {
     curl_handle = curl_easy_init();
 
     curl_easy_setopt(curl_handle, CURLOPT_FOLLOWLOCATION, 1L); //todo: we should check return values on these
-    curl_easy_setopt(curl_handle, CURLOPT_FAILONERROR, 1L);
     curl_easy_setopt(curl_handle, CURLOPT_ACCEPT_ENCODING, "gzip");
     curl_easy_setopt(curl_handle, CURLOPT_MAXREDIRS, 50L);
     curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT, 10L);
@@ -74,12 +73,16 @@ void destroy_curl() {
 }
 
 int curl_add_header(char const* header) {
-    struct curl_slist* new = curl_slist_append(curl_headers, header);
     if (!header) {
         return -1;
     }
+    struct curl_slist* new = curl_slist_append(curl_headers, header);
     curl_headers = new;
-    curl_easy_setopt(curl_handle, CURLOPT_HTTPHEADER, curl_headers);
+    CURLcode res = curl_easy_setopt(curl_handle, CURLOPT_HTTPHEADER, curl_headers);
+    if (res) {
+        efuncprintf("Failed to add header: %s for reason: %s\n", header, curl_easy_strerror(res));
+        return res;
+    }
     return 0;
 }
 
@@ -186,23 +189,28 @@ size_t write_response(void* ptr, size_t size, size_t nmemb, void* stream) {
     return size * nmemb;
 }
 
-int download(char const* url) {
+long download(char const* url) {
     curl_easy_setopt(curl_handle, CURLOPT_URL, url);
     CURLcode status = curl_easy_perform(curl_handle);
     long response_code;
     curl_easy_getinfo(curl_handle, CURLINFO_RESPONSE_CODE, &response_code);
     if (status != CURLE_OK) {
         efuncprintf("curl_easy_perform() failed, response code: %ld, reason: %s\n", response_code, curl_easy_strerror(status));
-        return status;
+        return -((long) status);
     }
-    if (response_code != 200) {
-        efuncprintf("Failed to download page, response code: %ld\n", response_code);
-        return -1;
+    if (response_code == 400) {
+        efuncprintf("Failed to download page [%s], response code of 400\n", url);
     }
-    return 0;
+    // if (response_code != 200) {
+    //     efuncprintf("Failed to download page, response code: %ld\n", response_code);
+    //     return -1;
+    // }
+    return response_code;
 }
 
-void* download_to_data(char const* url) {
+pair$alloc_void$long$ download_to_data(char const* url) {
+    pair$alloc_void$long$ ret = {nullptr, -1};
+
     // printf("URL: %s\n", url);
     curl_write_result_t result = {0};
     result.data = malloc(DOWNLOAD_BUFFER_SIZE);
@@ -210,18 +218,22 @@ void* download_to_data(char const* url) {
 
     curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, write_response);
     curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, &result);
-    int status = download(url);
-    if (status)
+    long status = download(url);
+    if (status < 0)
         goto error;
 
-    return result.data;
+    ret.first = result.data;
+    ret.second = status;
+    return ret;
 
     error:
         free(result.data);
-    return nullptr;
+    return ret;
 }
 
-char* download_to_string(char const* url) {
+pair$alloc_str$long$ download_to_string(char const* url) {
+    pair$alloc_str$long$ ret = {nullptr, -1};
+
     // printf("URL: %s\n", url);
     curl_write_result_t result = {0};
     result.data = malloc(DOWNLOAD_BUFFER_SIZE);
@@ -229,31 +241,37 @@ char* download_to_string(char const* url) {
 
     curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, write_response);
     curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, &result);
-    int status = download(url);
-    if (status)
+    long status = download(url);
+    if (status < 0)
         goto error;
 
     result.data[result.pos] = '\0';
     size_t len = strlen(result.data);
-    realloc(result.data, len + 1);
-    return result.data;
+    char* new = realloc(result.data, len + 1);
+    if (!new) {
+        efuncprintf("Failed to allocate memory for string\n");
+        goto error;
+    }
+    ret.first = result.data;
+    ret.second = status;
+    return ret;
 
 error:
     free(result.data);
-    return nullptr;
+    return ret;
 }
 
-char* http_get_string(char const* url) {
+pair$alloc_str$long$ http_get_string(char const* url) {
     curl_easy_setopt(curl_handle, CURLOPT_HTTPGET, 1);
     return download_to_string(url);
 }
 
-void* http_get_data(char const* url) {
+pair$alloc_void$long$ http_get_data(char const* url) {
     curl_easy_setopt(curl_handle, CURLOPT_HTTPGET, 1);
     return download_to_data(url);
 }
 
-int get_file(char const* url, char const* path) {
+long get_file(char const* url, char const* path) {
     make_dirs(path);
     FILE* f = fopen(path, "wb");
     if (!f) {
@@ -262,26 +280,26 @@ int get_file(char const* url, char const* path) {
     }
     curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, nullptr);
     curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, f);
-    int status = download(url);
+    long status = download(url);
     fclose(f);
-    if (status) {
+    if (status < 0) {
         unlink(path);
-        return -2;
+        return status;
     }
-    return 0;
+    return status;
 }
 
-int http_get_file(char const* url, char const* path) {
+long http_get_file(char const* url, char const* path) {
     curl_easy_setopt(curl_handle, CURLOPT_HTTPGET, 1);
     return get_file(url, path);
 }
 
-char* post_json_string(char const* url, char const* json) {
+pair$alloc_str$long$ post_json_string(char const* url, char const* json) {
     curl_easy_setopt(curl_handle, CURLOPT_POSTFIELDS, json);
     return download_to_string(url);
 }
 
-int post_json_file(char const* url, char const* json, char const* path) {
+long post_json_file(char const* url, char const* json, char const* path) {
     curl_easy_setopt(curl_handle, CURLOPT_POSTFIELDS, json);
     return get_file(url, path);
 }
