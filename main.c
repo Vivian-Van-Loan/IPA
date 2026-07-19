@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
     matrix_client_t client = make_client();
     matrix_login_from_save(&client.login, false);
     if (!client.login.logged_in) {
-        matrix_login_pass(&client.login, "toasterwaffle.win", "alice", "0VKPXagX96G7Z2", "IPA-testing");
+        matrix_login_pass(&client.login, "toasterwaffle.win", "alice", "STRIPPED OUT", "IPA-testing");
     }
     matrix_client_sync_account_data(&client);
     matrix_client_sync_directs(&client);
@@ -50,19 +50,19 @@ int main(int argc, char** argv) {
     client.menu = MENU_DMS;
 
     while (aptMainLoop()) {
-        hidScanInput();
-
-        u32 kDown = hidKeysDown();
-
-        if (kDown & KEY_START)
-            break;
+        // hidScanInput();
+        //
+        // u32 kDown = hidKeysDown();
+        //
+        // if (kDown & KEY_START)
+        //     break;
 
         // Flush and swap framebuffers
         // gfxFlushBuffers();
         // gfxSwapBuffers();
 
         // Render the scene
-        draw(&client);
+        draw_and_input(&client);
 
         gspWaitForVBlank();
     }

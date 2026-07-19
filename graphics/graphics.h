@@ -37,6 +37,6 @@ constexpr u32 ORANGE = C2D_Color32c(0xFB, 0x69, 0x00, 0xFF);
 
 int init_graphics();
 
-void draw(struct matrix_client_t* client);
+void draw_and_input(struct matrix_client_t* client);
 
 #endif //MATRIX_CLIENT_GRAPHICS_H

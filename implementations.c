@@ -11,3 +11,4 @@
 #include "graphics/graphics.h"
 #include "utils.h"
 #include "matrix/matrix-utils.h"
+#include "matrix/matrix-client.h"

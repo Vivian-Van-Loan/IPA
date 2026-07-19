@@ -48,6 +48,13 @@ set(MATRIXC_SRCS
 		graphics/images.h
 		types/hash.c
 		types/hash.h
+        matrix/event/matrix-event.c
+        matrix/event/matrix-event.h
+		matrix/event/matrix-event-message.c
+		matrix/event/matrix-event-message.h
+		matrix/event/matrix-event-room.c
+		matrix/event/matrix-event-room.h
+		matrix/event/matrix-event-type.h
 )
 
 add_executable(${PROJECT_NAME} ${MATRIXC_SRCS})

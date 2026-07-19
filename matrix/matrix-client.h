@@ -6,6 +6,10 @@
 #include "login.h"
 #include "matrix_user_t.h"
 #include "matrix_room_t.h"
+#include "event/matrix-event.h"
+
+#define TEMPLATE_TYPE matrix_event_t
+#include "../types/vector.h"
 
 typedef enum matrix_menu_t {
     MENU_NONE = 0,
@@ -26,8 +30,8 @@ typedef struct matrix_client_t {
     json_t* core_account_data;
     matrix_menu_t menu;
     struct ipa_graphics_state_t* graphics_state;
-    // vector$matrix_user_t$ users;
     vector$matrix_room_t$ rooms;
+    vector$matrix_event_t$ events;
 } matrix_client_t;
 
 int matrix_client_sync_account_data(matrix_client_t* client);

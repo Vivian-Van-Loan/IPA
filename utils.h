@@ -2,6 +2,8 @@
 #define MATRIX_CLIENT_UTILS_H
 
 #include <stdint.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #include <curl/curl.h>
 
@@ -50,6 +52,7 @@ int init_general();
 int init_curl();
 void destroy_curl();
 
+int curl_destroy_headers();
 int curl_add_header(char const* header);
 
 int make_dirs(char const* path);
@@ -65,5 +68,8 @@ pair$alloc_void$long$ http_get_data(char const* url);
 long http_get_file(char const* url, char const* path);
 pair$alloc_str$long$ post_json_string(char const* url, char const* json);
 long post_json_file(char const* url, char const* json, char const* path);
+
+off_t get_file_size(char const* path);
+off_t get_file_size_fd(int fd);
 
 #endif //MATRIX_CLIENT_UTILS_H

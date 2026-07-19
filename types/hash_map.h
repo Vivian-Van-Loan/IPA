@@ -42,7 +42,8 @@ TEMPLATE_INLINE void TEMPLATE_FUNC_KV(eval)(TEMPLATE_STRUCT_KV* map);
 TEMPLATE_INLINE TEMPLATE_TYPE_V* TEMPLATE_FUNC_KV(add)(TEMPLATE_STRUCT_KV* map, TEMPLATE_TYPE_K key, TEMPLATE_TYPE_V value);
 TEMPLATE_INLINE TEMPLATE_TYPE_V* TEMPLATE_FUNC_KV(remove)(TEMPLATE_STRUCT_KV* map, TEMPLATE_TYPE_K key);
 TEMPLATE_INLINE TEMPLATE_TYPE_V* TEMPLATE_FUNC_KV(remove_callback)(TEMPLATE_STRUCT_KV* map, TEMPLATE_TYPE_K key, void (*free_func_k)(TEMPLATE_TYPE_K*));
-TEMPLATE_INLINE TEMPLATE_TYPE_V* TEMPLATE_FUNC_KV(find)(TEMPLATE_STRUCT_KV* map, TEMPLATE_TYPE_K key);
+TEMPLATE_INLINE TEMPLATE_TYPE_V* TEMPLATE_FUNC_KV(find)(TEMPLATE_STRUCT_KV const* map, TEMPLATE_TYPE_K key);
+TEMPLATE_INLINE TEMPLATE_TYPE_V* TEMPLATE_FUNC_KV(get_by_idx)(TEMPLATE_STRUCT_KV const* map, size_t idx);
 
 TEMPLATE_INLINE TEMPLATE_STRUCT_KV TEMPLATE_FUNC_KV(new)() {
     return (TEMPLATE_STRUCT_KV) {.num_items = 0, .num_buckets = 0, .buckets = nullptr};
@@ -68,6 +69,9 @@ TEMPLATE_INLINE void TEMPLATE_FUNC_KV(free_callback)(TEMPLATE_STRUCT_KV* map, vo
         }
     }
     free(map->buckets);
+    map->num_items = 0;
+    map->num_buckets = 0;
+    map->buckets = nullptr;
 }
 
 TEMPLATE_INLINE void TEMPLATE_FUNC_KV(resize)(TEMPLATE_STRUCT_KV* map, size_t new_buckets) {
@@ -97,7 +101,7 @@ TEMPLATE_INLINE void TEMPLATE_FUNC_KV(resize)(TEMPLATE_STRUCT_KV* map, size_t ne
 TEMPLATE_INLINE void TEMPLATE_FUNC_KV(increase)(TEMPLATE_STRUCT_KV* map) {
     size_t new_buckets = map->num_buckets * 2;
     if (new_buckets == 0) {
-        new_buckets = 8;
+        new_buckets = 2;
     }
     TEMPLATE_FUNC_KV(resize)(map, new_buckets);
 }
@@ -111,6 +115,11 @@ TEMPLATE_INLINE void TEMPLATE_FUNC_KV(decrease)(TEMPLATE_STRUCT_KV* map) {
 }
 
 TEMPLATE_INLINE void TEMPLATE_FUNC_KV(eval)(TEMPLATE_STRUCT_KV* map) {
+    if (!map->num_buckets) {
+        TEMPLATE_FUNC_KV(increase)(map);
+        return;
+    }
+
     float load_factor = (float) map->num_items / (float) map->num_buckets;
     if (load_factor >= 1.5) {
         TEMPLATE_FUNC_KV(increase)(map);
@@ -133,7 +142,9 @@ TEMPLATE_INLINE TEMPLATE_TYPE_V* TEMPLATE_FUNC_KV(add)(TEMPLATE_STRUCT_KV* map, 
         entry->next = (TEMPLATE_HASH_ENTRY*) malloc(sizeof(TEMPLATE_HASH_ENTRY));
         entry = entry->next;
     } else {
-        entry = (TEMPLATE_HASH_ENTRY*) malloc(sizeof(TEMPLATE_HASH_ENTRY));
+        // entry = (TEMPLATE_HASH_ENTRY*) malloc(sizeof(TEMPLATE_HASH_ENTRY)); //HA HA WHOOPS THAT'S NOT HOW THAT WORKS!
+        map->buckets[bucket_idx] = (TEMPLATE_HASH_ENTRY*) malloc(sizeof(TEMPLATE_HASH_ENTRY));
+        entry = map->buckets[bucket_idx];
     }
 #ifdef TEMPLATE_TYPE_K_IS_ARRAY //be VERY careful with this as it requires an ACTUAL ARRAY and NOT A POINTER/DECAYED ARRAY
     memcpy(entry->key, key, sizeof(TEMPLATE_TYPE_K));
@@ -160,6 +171,10 @@ TEMPLATE_INLINE TEMPLATE_TYPE_V* TEMPLATE_FUNC_KV(remove)(TEMPLATE_STRUCT_KV* ma
 }
 
 TEMPLATE_INLINE TEMPLATE_TYPE_V* TEMPLATE_FUNC_KV(remove_callback)(TEMPLATE_STRUCT_KV* map, TEMPLATE_TYPE_K key, void (*free_func_k)(TEMPLATE_TYPE_K*)) {
+    if (!map->num_buckets) {
+        return nullptr;
+    }
+
     hash_t hash = TEMPLATE_HASH_FUNC(key);
     size_t bucket_idx = hash % map->num_buckets;
     TEMPLATE_HASH_ENTRY* entry = map->buckets[bucket_idx];
@@ -184,7 +199,11 @@ TEMPLATE_INLINE TEMPLATE_TYPE_V* TEMPLATE_FUNC_KV(remove_callback)(TEMPLATE_STRU
     return entry ? &entry->value : nullptr;
 }
 
-TEMPLATE_INLINE TEMPLATE_TYPE_V* TEMPLATE_FUNC_KV(find)(TEMPLATE_STRUCT_KV* map, TEMPLATE_TYPE_K key) {
+TEMPLATE_INLINE TEMPLATE_TYPE_V* TEMPLATE_FUNC_KV(find)(TEMPLATE_STRUCT_KV const* map, TEMPLATE_TYPE_K key) {
+    if (!map->num_buckets) {
+        return nullptr;
+    }
+
     hash_t hash = TEMPLATE_HASH_FUNC(key);
     size_t bucket_idx = hash % map->num_buckets;
     TEMPLATE_HASH_ENTRY* entry = map->buckets[bucket_idx];
@@ -193,6 +212,26 @@ TEMPLATE_INLINE TEMPLATE_TYPE_V* TEMPLATE_FUNC_KV(find)(TEMPLATE_STRUCT_KV* map,
             return &entry->value;
         }
         entry = entry->next;
+    }
+    return nullptr;
+}
+
+TEMPLATE_INLINE TEMPLATE_TYPE_V* TEMPLATE_FUNC_KV(get_by_idx)(TEMPLATE_STRUCT_KV const* map, size_t idx) {
+    if (idx >= map->num_items) {
+        return nullptr;
+    }
+    size_t bucket = 0;
+    size_t i = 0;
+    while (bucket < map->num_buckets && i <= idx) {
+        TEMPLATE_HASH_ENTRY* entry = map->buckets[bucket];
+        while (entry && i <= idx) {
+            if (i == idx) {
+                return &entry->value;
+            }
+            entry = entry->next;
+            i++;
+        }
+        bucket++;
     }
     return nullptr;
 }

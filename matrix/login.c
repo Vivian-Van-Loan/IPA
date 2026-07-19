@@ -27,6 +27,7 @@ void matrix_login_dump_refresh(matrix_login_t const* login) {
 int curl_add_auth(char const* auth_token) {
     char buf[URL_BUFFER_SIZE];
     snprintf(buf, sizeof(buf), "Authorization: Bearer %s", auth_token);
+    curl_destroy_headers();
     int res = curl_add_header(buf);
     if (res) {
         efuncprintf("Failed to add access token to curl headers\n");

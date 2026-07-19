@@ -8,8 +8,6 @@ typedef struct matrix_user_t {
     char* display_name;
     char* avatar_url;
 } matrix_user_t;
-#define TEMPLATE_TYPE matrix_user_t
-#include "../types/vector.h"
 
 void matrix_user_destroy(matrix_user_t* user);
 

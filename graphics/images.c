@@ -22,6 +22,10 @@ size_t bits_per_pixel(enum image_format format) {
     }
 }
 
+size_t bytes_per_pixel(enum image_format format) {
+    return bits_per_pixel(format) / 8;
+}
+
 void form_avatar_path(img_path dest, char const* image_id, size_t width, size_t height) {
     snprintf(dest, sizeof(img_path), "%s%zux%zu/%s", AVATAR_CACHE_DIR, width, height, image_id);
 }
@@ -65,7 +69,7 @@ ipa_image_t* lookup_image(hash_map$img_path$ipa_image_t$* map, char const* mxc_u
 }
 
 ipa_image_t load_image(unsigned char const* input, size_t len, enum image_format format) {
-    ipa_image_t image = {.data = nullptr, .format = IMAGE_FORMAT_RGBA};
+    ipa_image_t image = {.data = nullptr, .format = IMAGE_FORMAT_RGBA, .id = 0};
 
     int x, y, channels_in_file;
     int z = 1;
@@ -116,6 +120,21 @@ ipa_image_t load_image(unsigned char const* input, size_t len, enum image_format
         case IMAGE_FORMAT_UNKNOWN:
             break;
     }
+    return image;
+}
+
+ipa_image_t load_etc_image(unsigned char const* input, size_t width, size_t height, enum image_format format) {
+    ipa_image_t image = {.data = nullptr, .format = IMAGE_FORMAT_ETC1A4};
+    if (format != IMAGE_FORMAT_ETC1A4 && format != IMAGE_FORMAT_ETC1) {
+        return image;
+    }
+
+    image.data = malloc(width * height * bytes_per_pixel(format));
+    memcpy(image.data, input, width * height * bytes_per_pixel(format));
+    image.width = width;
+    image.height = height;
+    image.frames = 1;
+    image.num_channels = format == IMAGE_FORMAT_ETC1A4 ? 4 : 3;
     return image;
 }
 
@@ -182,60 +201,61 @@ void encode_etc1_block(size_t block_x, size_t block_y, size_t width, size_t heig
     *block_out += sizeof(uint64_t);
 }
 
-ipa_image_t convert_to_etc(ipa_image_t* image) {
-    ipa_image_t converted = {.data = nullptr, .format = IMAGE_FORMAT_ETC1A4};
-    converted.width = next_power_of_two(image->width);
-    converted.height = next_power_of_two(image->height);
-    converted.frames = 1;
+int convert_to_etc(ipa_image_t* image) {
+    size_t width = next_power_of_two(image->width);
+    size_t height = next_power_of_two(image->height);
 
     if (image->format != IMAGE_FORMAT_RGBA) {
         efuncprintf("Image is not in RGBA format\n");
-        return converted;
+        return -1;
     }
-    converted.data = malloc((converted.width * converted.height * bits_per_pixel(IMAGE_FORMAT_ETC1A4)) / 8);
-    converted.num_channels = bits_per_pixel(IMAGE_FORMAT_ETC1A4) / 8;
+    unsigned char* data = malloc(width * height * bytes_per_pixel(IMAGE_FORMAT_ETC1A4));
 
     pack_etc1_block_init();
 
-    unsigned char* conv = converted.data;
+    unsigned char* conv = data;
     for (size_t y = 0; y < image->height; y += 8) {
         for (size_t x = 0; x < image->width; x += 8) {
             for (size_t i = 0; i < 8; i += 4) { //4x4 blocks
                 for (size_t j = 0; j < 8; j += 4) {
-                    encode_etc1_block(x + j, y + i, converted.width, converted.height, image->width, image->height, image->data, &conv);
+                    encode_etc1_block(x + j, y + i, width, height, image->width, image->height, image->data, &conv);
                 }
             }
         }
     }
+    free(image->data);
+    image->data = data;
+    image->format = IMAGE_FORMAT_ETC1A4;
+    image->num_channels = image->format == IMAGE_FORMAT_ETC1A4 ? 4 : 3;
+    image->width = width;
+    image->height = height;
 
-    destroy_image(image);
-    return converted;
+    return 0;
 }
 
-ipa_image_t resize_compress(ipa_image_t* image, size_t width, size_t height) {
-    ipa_image_t out = {.data = nullptr, .format = IMAGE_FORMAT_RGBA};
+int resize_compress(ipa_image_t* image, size_t width, size_t height) {
     if (!image->data || image->format != IMAGE_FORMAT_RGBA) {
         efuncprintf("Image is not in RGBA format\n");
-        return out;
+        return -1;
     }
     void* resized_pixels = stbir_resize_uint8_srgb(image->data, image->width, image->height, 0, nullptr, width, height, 0, STBIR_RGBA);
     if (!resized_pixels) {
         efuncprintf("Failed to resize image\n");
-        return out;
+        return -1;
     }
-    destroy_image(image);
-    out.data = resized_pixels;
-    out.width = width;
-    out.height = height;
-    out.frames = 1;
-    out.format = IMAGE_FORMAT_RGBA;
-    out.num_channels = 4;
+    // destroy_image(image);
+    image->data = resized_pixels;
+    image->width = width;
+    image->height = height;
+    image->frames = 1;
+    image->format = IMAGE_FORMAT_RGBA;
+    image->num_channels = 4;
 
-    out = convert_to_etc(&out);
-    if (!out.data) {
+    convert_to_etc(image);
+    if (!image->data) {
         efuncprintf("Failed to convert image\n");
     }
-    return out;
+    return 0;
 }
 
 ipa_image_t load_resize_compress_save(unsigned char const* input, size_t len, enum image_format format, size_t width, size_t height, img_path const path) {
@@ -244,27 +264,27 @@ ipa_image_t load_resize_compress_save(unsigned char const* input, size_t len, en
         efuncprintf("Failed to load image\n");
         return image;
     }
-    image = resize_compress(&image, width, height);
+    resize_compress(&image, width, height);
     if (!image.data) {
         efuncprintf("Failed to resize and compress image\n");
         return image;
     }
 
     // form_image_path(image.path, image_id, image.width, image.height);
-    strncpy(image.path, path, sizeof(image.path));
-    FILE* f = fopen(image.path, "wb");
+    // strncpy(image.path, path, sizeof(image.path));
+    FILE* f = fopen(path, "wb");
     if (!f) {
-        efuncprintf("Failed to open file: %s", image.path);
-        memset(image.path, 0, sizeof(image.path));
+        efuncprintf("Failed to open file: %s", path);
+        // memset(image.path, 0, sizeof(image.path));
         return image;
     }
     size_t const to_write = image.width * image.height * image.num_channels;
     size_t written = fwrite(image.data, 1, to_write, f);
     fclose(f);
     if (written < to_write) {
-        efuncprintf("Failed to write image to file: %s", image.path);
-        unlink(image.path);
-        memset(image.path, 0, sizeof(image.path));
+        efuncprintf("Failed to write image to file: %s", path);
+        unlink(path);
+        // memset(image.path, 0, sizeof(image.path));
     }
 
     return image;

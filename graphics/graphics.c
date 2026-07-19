@@ -10,6 +10,7 @@ struct ipa_graphics_state_t {
     ptrdiff_t time_on_menu;
     matrix_menu_t menu;
     ptrdiff_t selection;
+    ptrdiff_t selection_num;
     ptrdiff_t scroll_pos;
     ptrdiff_t scroll_to_pos;
     ptrdiff_t anim_start_time;
@@ -19,7 +20,7 @@ struct ipa_graphics_state_t {
 
 constexpr float FADE_TOP = 0.25f;
 constexpr float FADE_BOTTOM = 1;
-constexpr int SPEED = 6;
+constexpr int SPEED = 3;
 constexpr int BIG_AVATAR_SIZE = 32;
 constexpr int SMALL_AVATAR_SIZE = 16;
 
@@ -45,6 +46,7 @@ int init_graphics() {
     gfxInitDefault();
     C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
     C2D_Init(C2D_DEFAULT_MAX_OBJECTS);
+    C3D_FrameRate(60);
     C2D_Prepare();
 
     // consoleInit(GFX_TOP, nullptr);
@@ -132,15 +134,37 @@ ipa_image_t* get_avatar(matrix_client_t* client, char const* mxc_url, size_t wid
 
     ipa_image_t* image = lookup_avatar(&client->graphics_state->image_map, mxc_url, width, height);
     if (!image) {
-        //todo: we aren't checking disk cache with this yet
+        img_path path;
+        ipa_image_t temp;
+        form_avatar_path(path, strrchr(mxc_url, '/') + 1, width, height);
+        FILE* f = fopen(path, "rb"); //let's go disk cache baby
+        if (f) {
+            off_t size = get_file_size_fd(fileno(f));
+            unsigned char* data = malloc(size);
+            // if (fread(data, 1, size, f) != size) {
+            //     eprintf("Failed to read avatar image\n");
+            //     free(data);
+            //     fclose(f);
+            //     return nullptr;
+            // }
+            fread(data, 1, size, f);
+            fclose(f);
+            temp = load_etc_image(data, width, height, IMAGE_FORMAT_ETC1A4);
+            free(data);
+            image = hash_map$img_path$ipa_image_t$_add(&client->graphics_state->image_map, path, temp);
+            if (!image || !image->data) {
+                destroy_image(&temp);
+                return nullptr;
+            }
+            return image;
+        }
+
         enum image_format format;
         pair$alloc_void$size_t$ data = download_image_data(client, mxc_url, &format);
         if (!data.first) {
             return nullptr;
         }
-        img_path path;
-        form_avatar_path(path, strrchr(mxc_url, '/') + 1, width, height);
-        ipa_image_t temp = load_resize_compress_save(data.first, data.second, format, width, height, path);
+        temp = load_resize_compress_save(data.first, data.second, format, width, height, path);
         free(data.first);
         if (!temp.data) {
             return nullptr;
@@ -359,6 +383,8 @@ void draw_main_menu_bottom(struct ipa_graphics_state_t* graphics) {
 }
 
 void draw_main_menu(struct ipa_graphics_state_t* graphics) {
+    graphics->selection_num = 4;
+
     draw_main_menu_top(graphics);
     draw_main_menu_bottom(graphics);
 }
@@ -368,6 +394,9 @@ void draw_select_menu_bottom(matrix_client_t* client) {
 
     struct ipa_graphics_state_t* graphics = client->graphics_state;
     ptrdiff_t const num_rooms = client->rooms.count;
+    if (graphics->selection_num == 0) {
+        graphics->selection_num = num_rooms;
+    }
     // if (graphics->selection < 0) {
     //     graphics->selection = 0;
     //     graphics->scroll_pos = 0;
@@ -419,6 +448,9 @@ void draw_select_menu_bottom(matrix_client_t* client) {
     }
 
     int button_y_start = 24;
+    if (num_rooms < 6) {
+        button_y_start = 24 + (6 - num_rooms) * 32 / 2;
+    }
     for (ptrdiff_t i = start_idx; i < end_idx; i++) { //draw loop
         ptrdiff_t i_0 = i - start_idx;
         matrix_room_t* room = &client->rooms.data[i_0];
@@ -430,7 +462,7 @@ void draw_select_menu_bottom(matrix_client_t* client) {
     }
     if (graphics->selection >= start_idx && graphics->selection < end_idx) {
         ptrdiff_t idx = graphics->selection - start_idx;
-        draw_main_menu_select(59, idx * 32 + max(BOTTOM_HEIGHT - 5 - (graphics->time_on_menu - SPEED * graphics->selection) * SPEED, button_y_start - 3));
+        draw_main_menu_select(59, idx * 32 + max(BOTTOM_HEIGHT - 5 - (graphics->time_on_menu - SPEED * graphics->selection) * SPEED, button_y_start - 5));
     }
 }
 
@@ -598,7 +630,7 @@ void draw_chat_room(matrix_client_t* client) {
     draw_chat_room_bottom(client);
 }
 
-void draw(matrix_client_t* client) {
+void draw_and_input(matrix_client_t* client) {
     if (!client->graphics_state) {
         client->graphics_state = calloc(1, sizeof(*client->graphics_state));
     }
@@ -608,14 +640,23 @@ void draw(matrix_client_t* client) {
         graphics->menu = client->menu;
         graphics->time_on_menu = 0;
         graphics->selection = 0;
+        graphics->selection_num = 0;
         graphics->scroll_pos = 0;
         graphics->scroll_to_pos = 0;
         graphics->anim_start_time = 0;
 
-        //todo: clearout the vram images, consider what to do about the hashmap
+        //todo: consider what to do about the hashmap
+        while (graphics->vram_images.count) {
+            ipa_image_t* image = vector$pair$ipa_image_t_p$size_t$$_get(&graphics->vram_images, 0)->first;
+            image_unload_vram(image);
+            vector$pair$ipa_image_t_p$size_t$$_remove(&graphics->vram_images, 0);
+        }
     }
 
-    C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
+    while (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) {
+        //gotta love a busy wait
+        //needed to actually get beyond 30fps for reasons I do not understand
+    }
     C2D_TargetClear(top, C2D_Color32(0xFF, 0, 0xFF, 0xFF));
     C2D_TargetClear(bottom, C2D_Color32(0xFF, 0, 0xFF, 0xFF));
 
@@ -635,6 +676,24 @@ void draw(matrix_client_t* client) {
             break;
         case MENU_SPACE:
             break;
+    }
+
+    hidScanInput();
+
+    u32 key_presses = hidKeysDown();
+
+    if (key_presses & KEY_START)
+        exit(0);
+    if (key_presses & KEY_DOWN) {
+        graphics->selection++;
+        if (graphics->selection >= graphics->selection_num) {
+            graphics->selection = graphics->selection_num - 1;
+        }
+    } else if (key_presses & KEY_UP) {
+        graphics->selection--;
+        if (graphics->selection < 0) {
+            graphics->selection = 0;
+        }
     }
 
     C3D_FrameEnd(0);

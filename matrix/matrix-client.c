@@ -185,6 +185,10 @@ int matrix_client_sync_directs(matrix_client_t* client) {
         }
     }
     char* filter_value = install_filter(client, filter_json);
+    if (!filter_value) {
+        efuncprintf("Failed to install filter\n");
+        return -1;
+    }
     snprintf(buf, sizeof(buf), "%s/_matrix/client/v3/sync?filter=%s", client->login.homeserver_resolved, filter_value);
     free(filter_value);
 
@@ -212,7 +216,8 @@ int matrix_client_sync_directs(matrix_client_t* client) {
         // if (!room) {
         //     continue;
         // }
-        matrix_room_t* room = vector$matrix_room_t$_push(&client->rooms, (matrix_room_t){.id = strdup(key), .associated_users = vector$matrix_user_t$_new()});
+        // matrix_room_t* room = vector$matrix_room_t$_push(&client->rooms, (matrix_room_t){.id = strdup(key), .associated_users = vector$matrix_user_t$_new()});
+        matrix_room_t* room = vector$matrix_room_t$_push(&client->rooms, (matrix_room_t){.id = strdup(key), .users = hash_map$str_const$matrix_user_t$_new()});
         json_t* state_events = json_object_get(json_object_get(value_outer, "state"), "events");
         json_t* timeline_events = json_object_get(json_object_get(value_outer, "timeline"), "events");
         matrix_room_build(room, state_events);
@@ -230,9 +235,9 @@ int matrix_client_sync_directs(matrix_client_t* client) {
         }
         bool set_name = false;
         bool set_avatar = false;
-        for (size_t j = 0; j < room->associated_users.count; j++) { //todo: does not handle groups properly, fix eventually I guess
-            matrix_user_t* user = &room->associated_users.data[j];
-            if (strcmp(user->id, client->login.user_id) == 0) {
+        for (size_t j = 0; j < matrix_room_get_user_count(room); j++) { //todo: does not handle groups properly, fix eventually I guess
+            matrix_user_t* user = matrix_room_get_user_by_idx(room, j);
+            if (!user || strcmp(user->id, client->login.user_id) == 0) {
                 continue;
             }
             if (user->avatar_url && !room->avatar_url && !set_avatar) {
@@ -274,4 +279,5 @@ void destroy_client(matrix_client_t* client) {
     matrix_login_destroy(&client->login);
     json_decref(client->core_account_data);
     wipe_remake_client_temps(client);
+    vector$matrix_event_t$_free_callback(&client->events, matrix_event_destroy);
 }

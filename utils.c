@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <limits.h>
+#include <fcntl.h>
 #include <3ds.h>
 #include <malloc.h>
 
@@ -66,10 +67,17 @@ int init_curl() {
 }
 
 void destroy_curl() {
-    curl_slist_free_all(curl_headers);
+    curl_destroy_headers();
     curl_easy_cleanup(curl_handle);
     socExit();
     free(socubuf);
+}
+
+int curl_destroy_headers() {
+    curl_easy_setopt(curl_handle, CURLOPT_HTTPHEADER, nullptr);
+    curl_slist_free_all(curl_headers);
+    curl_headers = nullptr;
+    return 0;
 }
 
 int curl_add_header(char const* header) {
@@ -190,8 +198,12 @@ size_t write_response(void* ptr, size_t size, size_t nmemb, void* stream) {
 }
 
 long download(char const* url) {
-    curl_easy_setopt(curl_handle, CURLOPT_URL, url);
-    CURLcode status = curl_easy_perform(curl_handle);
+    CURLcode status = curl_easy_setopt(curl_handle, CURLOPT_URL, url);
+    if (status) {
+        efuncprintf("Failed to change curl download URL to: %s for reason: %s\n", url, curl_easy_strerror(status));
+        return -((long) status);
+    }
+    status = curl_easy_perform(curl_handle);
     long response_code;
     curl_easy_getinfo(curl_handle, CURLINFO_RESPONSE_CODE, &response_code);
     if (status != CURLE_OK) {
@@ -302,4 +314,23 @@ pair$alloc_str$long$ post_json_string(char const* url, char const* json) {
 long post_json_file(char const* url, char const* json, char const* path) {
     curl_easy_setopt(curl_handle, CURLOPT_POSTFIELDS, json);
     return get_file(url, path);
+}
+
+off_t get_file_size(char const* path) {
+    int fd = open(path, O_RDONLY);
+    if (fd == -1) {
+        return -1;
+    }
+    off_t size = get_file_size_fd(fd);
+    close(fd);
+    return size;
+}
+
+off_t get_file_size_fd(int fd) {
+    off_t size = -1;
+    struct stat st;
+    if (fstat(fd, &st) == 0) {
+        size = st.st_size;
+    }
+    return size;
 }

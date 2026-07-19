@@ -31,7 +31,8 @@ typedef struct ipa_image_t {
     size_t num_channels;
     int delay;
     enum image_format format;
-    img_path path;
+    // img_path path;
+    size_t id;
 } ipa_image_t;
 
 #define TEMPLATE_TYPE_K img_path //todo: figure out how this is going to fully work
@@ -50,9 +51,10 @@ ipa_image_t* lookup_avatar(hash_map$img_path$ipa_image_t$* map, char const* mxc_
 ipa_image_t* lookup_image(hash_map$img_path$ipa_image_t$* map, char const* mxc_url);
 
 ipa_image_t load_image(unsigned char const* input, size_t len, enum image_format format);
+ipa_image_t load_etc_image(unsigned char const* input, size_t width, size_t height, enum image_format format);
 void destroy_image(ipa_image_t* image);
-ipa_image_t convert_to_etc(ipa_image_t* image); //image WILL be destroyed after (on successful conversion)
-ipa_image_t resize_compress(ipa_image_t* image, size_t width, size_t height); //image WILL be destroyed after (on successful conversion)
+int convert_to_etc(ipa_image_t* image); //acts on the provided image, only altering it if successful
+int resize_compress(ipa_image_t* image, size_t width, size_t height); //acts on the provided image, only altering it if successful
 ipa_image_t load_resize_compress_save(unsigned char const* input, size_t len, enum image_format format, size_t width, size_t height, img_path const path);
 
 void image_load_vram(ipa_image_t* image);
