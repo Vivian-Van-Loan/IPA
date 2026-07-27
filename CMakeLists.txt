@@ -55,6 +55,7 @@ set(MATRIXC_SRCS
 		matrix/event/matrix-event-room.c
 		matrix/event/matrix-event-room.h
 		matrix/event/matrix-event-type.h
+        matrix/event/matrix-event-type.c
 )
 
 add_executable(${PROJECT_NAME} ${MATRIXC_SRCS})

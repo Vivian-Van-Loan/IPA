@@ -11,6 +11,8 @@ typedef enum matrix_event_type_t {
     EVENT_ROOM_JOIN_RULES,
     EVENT_ROOM_CANON_ALIAS,
     EVENT_ROOM_ENCRYPT,
+    EVENT_ROOM_MEMBER,
+    EVENT_ROOM_POWER_LEVELS,
 
     EVENT_REDACTED,
 
@@ -23,5 +25,8 @@ typedef enum matrix_event_type_t {
     EVENT_EPH_RECEIPT,
     EVENT_EPH_PRESENCE,
 } matrix_event_type_t;
+
+bool event_is_room(matrix_event_type_t type);
+bool event_is_ephemeral(matrix_event_type_t type);
 
 #endif //MATRIX_CLIENT_MATRIX_EVENT_TYPE_H

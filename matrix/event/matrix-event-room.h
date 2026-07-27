@@ -1,8 +1,16 @@
 #ifndef MATRIX_CLIENT_MATRIX_EVENT_ROOM_H
 #define MATRIX_CLIENT_MATRIX_EVENT_ROOM_H
 
+#include <stdint.h>
+#include <jansson.h>
+
 #include "../../types/general_types.h"
 #include "matrix-event-type.h"
+
+#define TEMPLATE_TYPE_K alloc_str
+#define TEMPLATE_TYPE_V int64_t
+#define TEMPLATE_EQUAL_FUNC(lhs, rhs) (strcmp((lhs), (rhs)) == 0)
+#include "../../types/hash_map.h"
 
 typedef struct matrix_prev_room_t {
     char* event_id;
@@ -15,6 +23,7 @@ typedef struct matrix_room_create_t {
     bool m_federate;
     char* room_version;
     char* type;
+    matrix_prev_room_t* predecessor;
 } matrix_room_create_t;
 
 typedef struct matrix_room_name_t {
@@ -48,6 +57,7 @@ typedef struct matrix_room_topic_t {
 } matrix_room_topic_t;
 
 typedef enum matrix_join_rule_type_t {
+    MATRIX_JOIN_NONE = 0,
     MATRIX_JOIN_PUBLIC,
     MATRIX_JOIN_INVITE,
     MATRIX_JOIN_KNOCK,
@@ -66,32 +76,41 @@ typedef struct matrix_room_canon_alias_t {
     vector$alloc_str$ alt_aliases;
 } matrix_room_canon_alias_t;
 
-typedef struct matrix_room_encrypt {
+typedef struct matrix_room_encrypt_t {
     char* algorithm;
     int64_t rotation_period_ms;
     int64_t rotation_period_msgs;
-} matrix_room_encrypt;
+} matrix_room_encrypt_t;
+
+typedef enum matrix_membership_type_t {
+    MATRIX_MEMBERSHIP_NONE = 0,
+    MATRIX_MEMBERSHIP_INVITE,
+    MATRIX_MEMBERSHIP_JOIN,
+    MATRIX_MEMBERSHIP_KNOCK,
+    MATRIX_MEMBERSHIP_LEAVE,
+    MATRIX_MEMBERSHIP_BAN,
+} matrix_membership_type_t;
 
 typedef struct matrix_room_member_t {
     char* avatar_url;
     char* display_name;
     bool is_direct;
     char* join_authorised_via_users_server;
-    char* membership;
+    matrix_membership_type_t membership;
     char* reason;
     //todo: maybe figure out ThirdPartyInvite
 } matrix_room_member_t;
 
 typedef struct matrix_room_power_levels_t {
-    int ban;
-    int events_default;
-    int invite;
-    int kick;
-    int redact;
-    int state_default;
-    int users_default;
-    hash_map_entry$alloc_str$int$ events;
-    hash_map_entry$alloc_str$int$ users;
+    int64_t ban;
+    int64_t events_default;
+    int64_t invite;
+    int64_t kick;
+    int64_t redact;
+    int64_t state_default;
+    int64_t users_default;
+    hash_map$alloc_str$int64_t$ events;
+    hash_map$alloc_str$int64_t$ users;
 } matrix_room_power_levels_t;
 
 typedef union matrix_event_room_t {
@@ -101,11 +120,12 @@ typedef union matrix_event_room_t {
     matrix_room_topic_t topic;
     matrix_room_join_rules_t join_rules;
     matrix_room_canon_alias_t canon_alias;
-    matrix_room_encrypt encrypt;
+    matrix_room_encrypt_t encrypt;
     matrix_room_member_t member;
     matrix_room_power_levels_t power_levels;
 } matrix_event_room_t;
 
+matrix_event_room_t matrix_make_room_event(matrix_event_type_t type, json_t* json);
 void matrix_event_room_destroy(matrix_event_type_t type, matrix_event_room_t* event);
 
 #endif //MATRIX_CLIENT_MATRIX_EVENT_ROOM_H

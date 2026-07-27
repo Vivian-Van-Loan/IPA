@@ -12,9 +12,6 @@
 #define TEMPLATE_TYPE_V alloc_str
 #include "../../types/pair.h"
 
-bool event_is_room(matrix_event_type_t type);
-bool event_is_ephemeral(matrix_event_type_t type);
-
 typedef struct matrix_encrypted_t {
     char* algorithm;
     char* ciphertext;

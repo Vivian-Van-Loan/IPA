@@ -35,16 +35,47 @@ int curl_add_auth(char const* auth_token) {
     return res;
 }
 
-int check_access_token(matrix_login_t* login, char const* homeserver_base, char const* user, char const* token) {
+int set_check_access_token(matrix_login_t* login, char const* homeserver_base, char const* user, char const* token) {
     login->logged_in = false;
+    login->access_token = strdup(token);
+    int res = curl_add_auth(login->access_token);
+    if (res) {
+        matrix_login_destroy(login);
+        return -1;
+    }
+
     login->homeserver_resolved = matrix_resolve_homeserver(homeserver_base);
     if (!login->homeserver_resolved) {
         efuncprintf("Failed to resolve homeserver to a matrix location\n");
+        curl_destroy_headers();
         return -1;
     }
-    login->user_id = strdup(user);
 
-    //todo: find a good API to test login against
+    char buf[URL_BUFFER_SIZE];
+    snprintf(buf, sizeof(buf), "%s/_matrix/client/v3/account/whoami", login->homeserver_resolved);
+    pair$alloc_str$long$ pair = http_get_string(buf);
+    if (pair.second != 200 || !pair.first) {
+        matrix_login_destroy(login);
+        free(pair.first);
+        curl_destroy_headers();
+        return -1;
+    }
+    char* response_str = pair.first;
+    json_auto_t* response = json_loads(response_str, 0, nullptr);
+    free(response_str);
+    json_t* device_id = json_object_get(response, "device_id");
+    if (device_id && json_is_string(device_id)) {
+        free(login->device_id);
+        login->device_id = strdup(json_string_value(device_id));
+    }
+
+    free(login->user_id);
+    json_t* user_id = json_object_get(response, "user_id");
+    if (user_id && json_is_string(user_id)) {
+        login->user_id = strdup(json_string_value(user_id));
+    } else {
+        login->user_id = strdup(user);
+    }
 
     return 0;
 }
@@ -98,16 +129,11 @@ void matrix_login_from_save(matrix_login_t* login, bool force_refresh) {
         if (force_refresh) {
             matrix_login_refresh(login, homeserver, user, refresh_token);
         } else {
-            if (check_access_token(login, homeserver, user, access_token) == 0) {
-                login->access_token = strdup(access_token);
+            if (set_check_access_token(login, homeserver, user, access_token) == 0) {
+                // login->access_token = strdup(access_token);
                 login->refresh_token = strdup(refresh_token);
                 login->homeserver = strdup(homeserver);
-                login->user_id = strdup(user);
-                int res = curl_add_auth(login->access_token);
-                if (res) {
-                    matrix_login_destroy(login);
-                    return;
-                }
+                // login->user_id = strdup(user);
                 login->logged_in = true;
             } else {
                 matrix_login_refresh(login, homeserver, user, refresh_token);
