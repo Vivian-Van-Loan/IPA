@@ -276,30 +276,35 @@ matrix_room_power_levels_t matrix_make_room_power_levels(json_t const* power_lev
 matrix_event_room_t matrix_make_room_event(matrix_event_type_t type, json_t* event_json) {
     matrix_event_room_t event = {0};
 
+    json_t* content = json_object_get(event_json, "content");
+    if (!content || !json_is_object(content)) {
+        efuncprintf("Failed to get content from json, are you sure this is a room event?\n");
+        return event; //todo: at present we don't actually have a way to signal the event can't be made, maybe make an optional type or something and return that?
+    }
     switch (type) {
         case EVENT_ROOM_CREATE:
-            event.create = matrix_make_room_create(event_json, event_json);
+            event.create = matrix_make_room_create(content, event_json);
             break;
         case EVENT_ROOM_NAME:
-            event.name = matrix_make_room_name(event_json);
+            event.name = matrix_make_room_name(content);
             break;
         case EVENT_ROOM_AVATAR:
-            event.avatar = matrix_make_room_avatar(event_json);
+            event.avatar = matrix_make_room_avatar(content);
             break;
         case EVENT_ROOM_TOPIC:
-            event.topic = matrix_make_room_topic(event_json);
+            event.topic = matrix_make_room_topic(content);
             break;
         case EVENT_ROOM_JOIN_RULES:
-            event.join_rules = matrix_make_room_join_rules(event_json);
+            event.join_rules = matrix_make_room_join_rules(content);
             break;
         case EVENT_ROOM_CANON_ALIAS:
-            event.canon_alias = matrix_make_room_canon_alias(event_json);
+            event.canon_alias = matrix_make_room_canon_alias(content);
             break;
         case EVENT_ROOM_ENCRYPT:
-            event.encrypt = matrix_make_room_encrypt(event_json);
+            event.encrypt = matrix_make_room_encrypt(content);
             break;
         case EVENT_ROOM_MEMBER:
-            event.member = matrix_make_room_member(event_json);
+            event.member = matrix_make_room_member(content);
             break;
         case EVENT_ROOM_POWER_LEVELS:
             break;

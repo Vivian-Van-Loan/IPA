@@ -167,7 +167,7 @@ int matrix_client_sync_directs(matrix_client_t* client) {
         return -1;
     }
     size_t index_i;
-    const char* key;
+    char const* key;
     size_t index_j;
     json_t* value_outer;
     json_t* value_inner;
