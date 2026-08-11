@@ -3,10 +3,10 @@
 
 #include <stdint.h>
 
-#include "../../types/general_types.h"
 #include "matrix-event-message.h"
 #include "matrix-event-room.h"
 #include "matrix-event-type.h"
+#include "../../types/general_types.h"
 
 #define TEMPLATE_TYPE_K matrix_event_type_t
 #define TEMPLATE_TYPE_V alloc_str
@@ -23,7 +23,7 @@ typedef struct matrix_encrypted_t {
 typedef struct matrix_event_unsigned_data_t {
     int64_t age;
     char* membership;
-    char* replaces;
+    char* replaces_state;
     char* transaction_id;
     //do we bother with redaction info? I don't think so honestly
 } matrix_event_unsigned_data_t;

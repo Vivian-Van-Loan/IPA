@@ -106,7 +106,6 @@ int matrix_client_sync_account_data(matrix_client_t* client) {
 }
 
 void wipe_remake_client_temps(matrix_client_t* client) {
-    // vector$matrix_user_t$_free_callback(&client->users, matrix_user_destroy);
     vector$matrix_room_t$_free_callback(&client->rooms, matrix_room_destroy);
     client->rooms = vector$matrix_room_t$_new();
 }
@@ -206,18 +205,7 @@ int matrix_client_sync_directs(matrix_client_t* client) {
     json_t* rooms_obj = json_object_get(rooms_json, "rooms");
     json_t* join_obj = json_object_get(rooms_obj, "join");
     json_object_foreach(join_obj, key, value_outer) { //key in this event is room id
-        // matrix_room_t* room = nullptr; //same deal as above
-        // for (size_t i = 0; i < client->rooms.count; i++) {
-        //     if (strcmp(key, client->rooms.data[i].id) == 0) {
-        //         room = &client->rooms.data[i];
-        //         break;
-        //     }
-        // }
-        // if (!room) {
-        //     continue;
-        // }
-        // matrix_room_t* room = vector$matrix_room_t$_push(&client->rooms, (matrix_room_t){.id = strdup(key), .associated_users = vector$matrix_user_t$_new()});
-        matrix_room_t* room = vector$matrix_room_t$_push(&client->rooms, (matrix_room_t){.id = strdup(key), .users = hash_map$str_const$matrix_user_t$_new()});
+        matrix_room_t* room = vector$matrix_room_t$_push(&client->rooms, (matrix_room_t){.id = strdup(key), .users = hash_map$str_const$matrix_event_t$_new()});
         json_t* state_events = json_object_get(json_object_get(value_outer, "state"), "events");
         json_t* timeline_events = json_object_get(json_object_get(value_outer, "timeline"), "events");
         matrix_room_build(room, state_events);
@@ -236,19 +224,20 @@ int matrix_client_sync_directs(matrix_client_t* client) {
         bool set_name = false;
         bool set_avatar = false;
         for (size_t j = 0; j < matrix_room_get_user_count(room); j++) { //todo: does not handle groups properly, fix eventually I guess
-            matrix_user_t* user = matrix_room_get_user_by_idx(room, j);
-            if (!user || strcmp(user->id, client->login.user_id) == 0) {
+            matrix_event_t* user_event = matrix_room_get_user_by_idx(room, j);
+            if (!user_event || strcmp(user_event->id, client->login.user_id) == 0) {
                 continue;
             }
-            if (user->avatar_url && !room->avatar_url && !set_avatar) {
-                room->avatar_url = strdup(user->avatar_url);
+            matrix_room_member_t* member = &user_event->room.member;
+            if (member->avatar_url && !room->avatar_url && !set_avatar) {
+                room->avatar_url = strdup(member->avatar_url);
                 set_avatar = true;
             }
             if (!room->name && !set_name) {
-                if (user->display_name) {
-                    room->name = strdup(user->display_name);
+                if (member->display_name) {
+                    room->name = strdup(member->display_name);
                 } else {
-                    room->name = strdup(user->id);
+                    room->name = strdup(user_event->sender);
                 }
                 set_name = true;
             }
@@ -262,12 +251,83 @@ int matrix_client_sync_directs(matrix_client_t* client) {
     return 0;
 }
 
-int matrix_client_sync_dump(matrix_client_t* client) {
+int matrix_client_sync_dump(matrix_client_t* client) { //it dumps everything out to one json file, for manual inspection
     char buf[URL_BUFFER_SIZE];
     snprintf(buf, sizeof(buf), "%s/_matrix/client/v3/sync", client->login.homeserver_resolved);
 
     int res = matrix_get_file(&client->login, buf, SAVE_DIR"sync_dump.json");
     return res;
+}
+
+int matrix_client_load_current_room(matrix_client_t* client, bool reverse) {
+    if (!client || !client->current_room) {
+        return -1;
+    }
+    matrix_room_t* room = client->current_room;
+    char buf[URL_BUFFER_SIZE];
+    snprintf(buf, sizeof(buf), "%s/_matrix/client/v3/rooms/%s/messages", client->login.homeserver_resolved, room->id);
+    CURLUcode res = 0;
+    CURLU* url = curl_url();
+    res = curl_url_set(url, CURLUPART_URL, buf, 0);
+    if (res != CURLUE_OK)
+        goto url_error;
+    if (reverse) {
+        res = curl_url_set(url, CURLUPART_QUERY, "dir=b", CURLU_APPENDQUERY);
+    } else {
+        res = curl_url_set(url, CURLUPART_QUERY, "dir=f", CURLU_APPENDQUERY);
+    }
+    if (res != CURLUE_OK)
+        goto url_error;
+    res = curl_url_set(url, CURLUPART_QUERY, "limit=15", CURLU_APPENDQUERY);
+    if (res != CURLUE_OK)
+        goto url_error;
+    if (room->end) {
+        snprintf(buf, sizeof(buf), "from=%s", room->end);
+        res = curl_url_set(url, CURLUPART_QUERY, buf, CURLU_APPENDQUERY);
+        if (res != CURLUE_OK)
+            goto url_error;
+    }
+
+    json_t* response = nullptr;
+    char* response_str = matrix_get_string(&client->login, buf);
+    if (!response_str) {
+        efuncprintf("Failed to download sync json\n");
+        goto error;
+    }
+    response = json_loads(response_str, 0, nullptr);
+    free(response_str);
+    response_str = nullptr;
+    if (!response) {
+        efuncprintf("Failed to parse sync json\n");
+        goto error;
+    }
+    //todo: now we go pass the event list or array or whatever off to matrix_room_add_events() and let it do its thing
+    // set the end token (if available) which can be used to fetch more messages
+    // and return and wait on the user, if they want to load more of the past then this will be called again with reverse
+    // set to true and we'll use end, if they stick around at the bottom to let new messages load then it'll go through a sync
+    // call and will unset end
+    // we'll also want to start pruning the event vector so it doesn't get overly large between here and the syncs, gotta determine a good limit, 100 events? 50?
+    // will very much depend
+
+    return 0;
+
+    url_error:
+    efuncprintf("Failed to set url\n");
+    curl_url_cleanup(url);
+    return -1;
+
+    error:
+    free(response_str);
+    json_decref(response);
+    return -1;
+}
+
+int matrix_client_set_and_sync_room(matrix_client_t* client, matrix_room_t* room) {
+    if (!client || !room) {
+        return -1;
+    }
+    client->current_room = room;
+    return matrix_client_load_current_room(client, true);
 }
 
 matrix_client_t make_client() {

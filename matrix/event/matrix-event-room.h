@@ -113,6 +113,11 @@ typedef struct matrix_room_power_levels_t {
     hash_map$alloc_str$int64_t$ users;
 } matrix_room_power_levels_t;
 
+typedef struct matrix_room_redaction_t {
+    char* reason;
+    char* redacts;
+} matrix_room_redaction_t;
+
 typedef union matrix_event_room_t {
     matrix_room_create_t create;
     matrix_room_name_t name;
@@ -123,6 +128,7 @@ typedef union matrix_event_room_t {
     matrix_room_encrypt_t encrypt;
     matrix_room_member_t member;
     matrix_room_power_levels_t power_levels;
+    matrix_room_redaction_t redaction;
 } matrix_event_room_t;
 
 matrix_event_room_t matrix_make_room_event(matrix_event_type_t type, json_t* json);

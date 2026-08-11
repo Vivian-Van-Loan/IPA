@@ -13,8 +13,7 @@ typedef enum matrix_event_type_t {
     EVENT_ROOM_ENCRYPT,
     EVENT_ROOM_MEMBER,
     EVENT_ROOM_POWER_LEVELS,
-
-    EVENT_REDACTED,
+    EVENT_ROOM_REDACTION,
 
     EVENT_ENCRYPTED,
 

@@ -13,3 +13,4 @@
 #include "matrix/matrix-utils.h"
 #include "matrix/matrix-client.h"
 #include "matrix/event/matrix-event-room.h"
+#include "matrix/event/matrix-event.h"

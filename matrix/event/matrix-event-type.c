@@ -3,11 +3,11 @@
 #include <string.h>
 
 bool event_is_room(matrix_event_type_t type) {
-    return type >= EVENT_ROOM_CREATE && type <= EVENT_ROOM_POWER_LEVELS;
+    return type >= EVENT_ROOM_CREATE && type <= EVENT_ROOM_REDACTION;
 }
 
 bool event_is_redaction(matrix_event_type_t type) {
-    return type == EVENT_REDACTED;
+    return type == EVENT_ROOM_REDACTION;
 }
 
 bool event_is_encrypted(matrix_event_type_t type) {
@@ -44,7 +44,7 @@ matrix_event_type_t matrix_event_type_from_str(const char* str) {
     }
 
     if (strcmp(str, "m.room.redaction") == 0) {
-        return EVENT_REDACTED;
+        return EVENT_ROOM_REDACTION;
     }
 
     if (strcmp(str, "m.room.encrypted") == 0) {
@@ -101,7 +101,7 @@ char const* str_from_matrix_event_type(matrix_event_type_t type) {
         case EVENT_ROOM_POWER_LEVELS:
             return "m.room.power_levels";
             break;
-        case EVENT_REDACTED:
+        case EVENT_ROOM_REDACTION:
             return "m.room.redaction";
             break;
         case EVENT_ENCRYPTED:

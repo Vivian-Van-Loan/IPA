@@ -18,12 +18,10 @@ matrix_event_t matrix_make_event(json_t* json) {
 
     if (event_is_room(type)) {
         event.room = matrix_make_room_event(type, json);
-    } else if (event_is_redaction(type)) {
-        //todo
     } else if (event_is_encrypted(type)) {
         //TODO: BIG ONE
     } else if (event_is_message(type)) {
-        //TODO: EVEN BIGGER ONE
+        event.message = matrix_make_message(json);
     } else if (event_is_ephemeral(type)) {
         //todo
     }
@@ -61,7 +59,7 @@ matrix_event_t matrix_make_event(json_t* json) {
         }
         json_t* replaces = json_object_get(unsigned_data, "replaces_state");
         if (replaces && json_is_string(replaces)) {
-            event.unsigned_data.replaces = strdup(json_string_value(replaces));
+            event.unsigned_data.replaces_state = strdup(json_string_value(replaces));
         }
         json_t* transaction_id = json_object_get(unsigned_data, "transaction_id");
         if (transaction_id && json_is_string(transaction_id)) {
@@ -93,6 +91,6 @@ void matrix_event_destroy(matrix_event_t* event) {
     free(event->room_id);
     free(event->state_key);
     free(event->unsigned_data.membership);
-    free(event->unsigned_data.replaces);
+    free(event->unsigned_data.replaces_state);
     free(event->unsigned_data.transaction_id);
 }

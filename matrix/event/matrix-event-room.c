@@ -273,6 +273,19 @@ matrix_room_power_levels_t matrix_make_room_power_levels(json_t const* power_lev
     return power_levels;
 }
 
+matrix_room_redaction_t matrix_make_room_redaction(json_t const* redaction_json) {
+    matrix_room_redaction_t redaction = {0};
+    json_t* reason = json_object_get(redaction_json, "reason");
+    if (reason && json_is_string(reason)) {
+        redaction.reason = strdup(json_string_value(reason));
+    }
+    json_t* redacts = json_object_get(redaction_json, "redacts");
+    if (redacts && json_is_string(redacts)) {
+        redaction.redacts = strdup(json_string_value(redacts));
+    }
+    return redaction;
+}
+
 matrix_event_room_t matrix_make_room_event(matrix_event_type_t type, json_t* event_json) {
     matrix_event_room_t event = {0};
 
@@ -307,8 +320,10 @@ matrix_event_room_t matrix_make_room_event(matrix_event_type_t type, json_t* eve
             event.member = matrix_make_room_member(content);
             break;
         case EVENT_ROOM_POWER_LEVELS:
+            event.power_levels = matrix_make_room_power_levels(content);
             break;
-        case EVENT_REDACTED:
+        case EVENT_ROOM_REDACTION:
+            event.redaction = matrix_make_room_redaction(content);
             break;
         default:
             efuncprintf("Called matrix_make_room_event with a non event type\n");

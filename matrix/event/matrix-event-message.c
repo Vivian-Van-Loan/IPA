@@ -97,7 +97,7 @@ matrix_message_t matrix_make_message(json_t* event_json) {
     if (info && json_is_object(info)) {
         json_t* mimetype = json_object_get(info, "mimetype");
         if (mimetype && json_is_string(mimetype)) {
-            message.mimetype = strdup(json_string_value(mimetype));
+            message.mime = strdup(json_string_value(mimetype));
         }
     }
 

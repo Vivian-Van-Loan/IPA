@@ -8,9 +8,6 @@
 #include "matrix_room_t.h"
 #include "event/matrix-event.h"
 
-#define TEMPLATE_TYPE matrix_event_t
-#include "../types/vector.h"
-
 typedef enum matrix_menu_t {
     MENU_NONE = 0,
 
@@ -32,11 +29,17 @@ typedef struct matrix_client_t {
     struct ipa_graphics_state_t* graphics_state;
     vector$matrix_room_t$ rooms;
     vector$matrix_event_t$ events;
+    matrix_room_t* current_room;
 } matrix_client_t;
 
 int matrix_client_sync_account_data(matrix_client_t* client);
 int matrix_client_sync_directs(matrix_client_t* client);
 int matrix_client_sync_dump(matrix_client_t* client);
+
+int matrix_client_load_current_room(matrix_client_t* client, bool reverse);
+
+int matrix_client_set_and_sync_room(matrix_client_t* client, matrix_room_t* room);
+
 matrix_client_t make_client();
 void destroy_client(matrix_client_t* client);
 
