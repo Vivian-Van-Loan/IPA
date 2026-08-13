@@ -28,7 +28,6 @@ typedef struct matrix_client_t {
     matrix_menu_t menu;
     struct ipa_graphics_state_t* graphics_state;
     vector$matrix_room_t$ rooms;
-    vector$matrix_event_t$ events;
     matrix_room_t* current_room;
 } matrix_client_t;
 

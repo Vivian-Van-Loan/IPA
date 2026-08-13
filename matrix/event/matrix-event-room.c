@@ -19,7 +19,7 @@ matrix_room_create_t matrix_make_room_create(json_t const* create_json, json_t c
         size_t index;
         json_array_foreach(additional_creators, index, creator) {
             if (json_is_string(creator)) {
-                vector$alloc_str$_push(&create.additional_creators, strdup(json_string_value(creator)));
+                vector$alloc_str$_push_back(&create.additional_creators, strdup(json_string_value(creator)));
             }
         }
     }
@@ -137,7 +137,7 @@ matrix_room_canon_alias_t matrix_make_room_canon_alias(json_t const* alias_json)
         size_t index;
         json_array_foreach(alt_aliases, index, alias_value) {
             if (json_is_string(alias_value)) {
-                vector$alloc_str$_push(&alias.alt_aliases, strdup(json_string_value(alias_value)));
+                vector$alloc_str$_push_back(&alias.alt_aliases, strdup(json_string_value(alias_value)));
             }
         }
     }

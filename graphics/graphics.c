@@ -442,7 +442,7 @@ void draw_select_menu_bottom(matrix_client_t* client) {
             continue;
         }
         if (graphics->vram_images.count < i - start_idx + 1) { // || graphics->vram_images.data[i - start_idx].second != i - start_idx) {
-            ipa_image_t* image = vector$pair$ipa_image_t_p$size_t$$_push(&graphics->vram_images, (pair$ipa_image_t_p$size_t$){get_avatar(client, room->avatar_url, BIG_AVATAR_SIZE, BIG_AVATAR_SIZE), i - start_idx})->first;
+            ipa_image_t* image = vector$pair$ipa_image_t_p$size_t$$_push_back(&graphics->vram_images, (pair$ipa_image_t_p$size_t$){get_avatar(client, room->avatar_url, BIG_AVATAR_SIZE, BIG_AVATAR_SIZE), i - start_idx})->first;
             image_load_vram(image);
         }
     }

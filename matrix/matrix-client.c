@@ -176,10 +176,6 @@ int matrix_client_sync_directs(matrix_client_t* client) {
         json_object_foreach(content, key, value_inner) { //key in this event is user id
             json_array_foreach(value_inner, index_j, value_room_id) {
                 json_array_append(rooms, value_room_id);
-                //this was used for autofilling the list of associated users for DMs, but uhhhhhh, that is done already and this allows non-existent rooms.
-                //So now we just use the list to build the filter of allowed rooms which will be DMs
-                // matrix_room_t* room = vector$matrix_room_t$_push(&client->rooms, (matrix_room_t){strdup(json_string_value(value_room_id)), vector$matrix_user_t$_new()});
-                // vector$matrix_user_t$_push(&room->associated_users, (matrix_user_t){.id = strdup(key)});
             }
         }
     }
@@ -205,7 +201,7 @@ int matrix_client_sync_directs(matrix_client_t* client) {
     json_t* rooms_obj = json_object_get(rooms_json, "rooms");
     json_t* join_obj = json_object_get(rooms_obj, "join");
     json_object_foreach(join_obj, key, value_outer) { //key in this event is room id
-        matrix_room_t* room = vector$matrix_room_t$_push(&client->rooms, (matrix_room_t){.id = strdup(key), .users = hash_map$str_const$matrix_event_t$_new()});
+        matrix_room_t* room = vector$matrix_room_t$_push_back(&client->rooms, (matrix_room_t){.id = strdup(key), .users = hash_map$str_const$matrix_event_t$_new()});
         json_t* state_events = json_object_get(json_object_get(value_outer, "state"), "events");
         json_t* timeline_events = json_object_get(json_object_get(value_outer, "timeline"), "events");
         matrix_room_build(room, state_events);
@@ -301,13 +297,16 @@ int matrix_client_load_current_room(matrix_client_t* client, bool reverse) {
         efuncprintf("Failed to parse sync json\n");
         goto error;
     }
-    //todo: now we go pass the event list or array or whatever off to matrix_room_add_events() and let it do its thing
-    // set the end token (if available) which can be used to fetch more messages
-    // and return and wait on the user, if they want to load more of the past then this will be called again with reverse
-    // set to true and we'll use end, if they stick around at the bottom to let new messages load then it'll go through a sync
-    // call and will unset end
-    // we'll also want to start pruning the event vector so it doesn't get overly large between here and the syncs, gotta determine a good limit, 100 events? 50?
-    // will very much depend
+    matrix_room_add_events(room, response, reverse);
+
+    json_t* end = json_object_get(response, "end");
+    if (end && json_is_string(end)) {
+        room->end = strdup(json_string_value(end));
+    } else {
+        room->end = nullptr;
+    }
+    json_decref(response);
+    response = nullptr;
 
     return 0;
 
@@ -339,5 +338,4 @@ void destroy_client(matrix_client_t* client) {
     matrix_login_destroy(&client->login);
     json_decref(client->core_account_data);
     wipe_remake_client_temps(client);
-    vector$matrix_event_t$_free_callback(&client->events, matrix_event_destroy);
 }

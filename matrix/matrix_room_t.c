@@ -1,9 +1,12 @@
 #include "matrix_room_t.h"
 
+#include "../utils.h"
+#include "event/matrix-event-room.h"
+
 void matrix_room_destroy(matrix_room_t* room) {
     free(room->id);
     hash_map$str_const$matrix_event_t$_free_callback(&room->users, nullptr, matrix_event_destroy);
-    vector$matrix_event_t$_free_callback(&room->events, matrix_event_destroy);
+    dequeue$matrix_event_t$_free_callback(&room->events, matrix_event_destroy);
     free(room->name);
     free(room->avatar_url);
     free(room->topic);
@@ -91,7 +94,13 @@ void matrix_room_build(matrix_room_t* room, json_t* events) {
     }
 }
 
-void matrix_room_add_events(matrix_room_t* room, json_t* events) {
+void matrix_room_add_events(matrix_room_t* room, json_t* events, bool reverse) {
+    if (!json_is_array(events)) {
+        efuncprintf("provided with non-array event json!");
+        return;
+    }
+    size_t size = json_array_size(events);
+
     size_t index_i;
     json_t* value_inner;
     json_array_foreach(events, index_i, value_inner) {
@@ -113,12 +122,34 @@ void matrix_room_add_events(matrix_room_t* room, json_t* events) {
             room->avatar_url = strdup(event.room.avatar.url);
             room->avatar_ts = event.origin_server_ts;
             destroy_event = true;
-        } else {
-            vector$matrix_event_t$_push(&room->events, event);
+        } else if (event.type.first == EVENT_ROOM_REDACTION) {
+            matrix_room_redaction_t* redaction = &event.room.redaction;
+            for (size_t i = 0; i < room->events.count; i++) {
+                matrix_event_t* e = &room->events.data[i];
+                if (strcmp(e->id, redaction->redacts) == 0) {
+                    matrix_event_destroy(e);
+                    dequeue$matrix_event_t$_remove(&room->events, i);
+                    break;
+                }
+            }
+            destroy_event = true;
         }
 
         if (destroy_event) {
             matrix_event_destroy(&event);
+        } else {
+            if (reverse) {
+                dequeue$matrix_event_t$_push(&room->events, event);
+            } else {
+                dequeue$matrix_event_t$_push_back(&room->events, event);
+            }
+            if (room->events.count > 500) { //shrink if we have too many events
+                if (reverse) {
+                    dequeue$matrix_event_t$_resize_keep_front(&room->events, 500);
+                } else {
+                    dequeue$matrix_event_t$_resize_keep_back(&room->events, 500);
+                }
+            }
         }
     }
 }

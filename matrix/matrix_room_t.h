@@ -12,7 +12,7 @@
 #include "../types/vector.h"
 
 #define TEMPLATE_TYPE matrix_event_t
-#include "../types/vector.h"
+#include "../types/dequeue.h"
 
 typedef matrix_user_t* matrix_user_t_p;
 #define TEMPLATE_TYPE_K str_const
@@ -24,7 +24,7 @@ typedef struct matrix_room_t {
     char* id;
     // vector$matrix_user_t$ associated_users;
     hash_map$str_const$matrix_event_t$ users;
-    vector$matrix_event_t$ events;
+    dequeue$matrix_event_t$ events;
     char* name;
     int64_t name_ts;
     char* avatar_url;
@@ -45,6 +45,6 @@ size_t matrix_room_get_user_count(matrix_room_t* room);
 matrix_event_t* matrix_room_get_user(matrix_room_t* room, char const* user_id);
 matrix_event_t* matrix_room_get_user_by_idx(matrix_room_t* room, size_t idx);
 void matrix_room_build(matrix_room_t* room, json_t* events);
-void matrix_room_add_events(matrix_room_t* room, json_t* events);
+void matrix_room_add_events(matrix_room_t* room, json_t* events, bool reverse);
 
 #endif //MATRIX_CLIENT_MATRIX_ROOM_T_H
