@@ -33,6 +33,26 @@ C2D_Sprite gradient_sprites[2];
 
 // C2D_ImageTint overlay_tint;
 u32 overlay_colour;
+u32 overlay_colour_dark;
+u32 overlay_colour_light;
+
+unsigned char overlay_channel(unsigned char base, unsigned char overlay) {
+    float b = (float)base / 255.0f;
+    float o = (float)overlay / 255.0f;
+    if (b < 0.5) {
+        return (unsigned char)(2 * b * o * 255.0f);
+    } else {
+        return (unsigned char)((1 - 2 * (1 - b) * (1 - o)) * 255.0f);
+    }
+}
+
+u32 C2D_Color_Overlay(u32 base, u32 overlay) {
+    unsigned char r = overlay_channel(C2D_Color_get_red(base), C2D_Color_get_red(overlay));
+    unsigned char g = overlay_channel(C2D_Color_get_green(base), C2D_Color_get_green(overlay));
+    unsigned char b = overlay_channel(C2D_Color_get_blue(base), C2D_Color_get_blue(overlay));
+    // unsigned char a = overlay_channel(C2D_Color_get_alpha(base), C2D_Color_get_alpha(overlay));
+    return C2D_Color32(r, g, b, C2D_Color_get_alpha(base));
+}
 
 int init_graphics() {
     make_dirs(IMG_CACHE_DIR);
@@ -79,6 +99,8 @@ int init_graphics() {
     }
 
     overlay_colour = C2D_Color32(0xFF, 0x00, 0x00, 0xFF);
+    overlay_colour_dark = C2D_Color_Overlay(DARK_GREY, overlay_colour);
+    overlay_colour_light = C2D_Color_Overlay(LIGHT_GREY, overlay_colour);
     // C2D_PlainImageTint(&overlay_tint, overlay_colour, 0.5f);
 
     return 0;
@@ -516,6 +538,44 @@ void draw_message_box(struct ipa_graphics_state_t* graphics, int x, int y, int w
     }
 }
 
+void draw_message_box_text(matrix_client_t* client, char const* name, char const* text, char const* avatar_url, int x, int y, int w, u32 dark, u32 light) {
+    int avatar_width = 16;
+    int avatar_left = x + 4;
+    int avatar_top = y + 3;
+    ipa_image_t* avatar = get_avatar(client, avatar_url, 16, 16);
+    image_load_vram(avatar);
+
+    ipa_string_t name_ipa = ipa_string_conv_crop(name, EM10_WIDTH);
+    //todo: I need not specify how terrible it is to both reallocate and recrop strings for drawing EVERY frame. We will want to shift
+    // to having this info precalculated and just passing an ipa_string_t* to these functions once we get the "look it displays things!"
+    // portion done
+
+    int nlines = 5; //todo: later we'll figure this out from text length and such
+    draw_message_box(client->graphics_state, x, y, w, nlines, true, dark, light);
+
+    int box_width = (avatar_left - x) + avatar_width + 1 + name_ipa.width;
+    C2D_DrawRectSolid(x + 3, y + 2, 0, box_width - 2, 17, light);
+    if (nlines > 1) {
+        C2D_DrawLine(x + 2, y + 4, light, x + 2, y + 20, light, 1, 0);
+        C2D_DrawLine(x + 2, y + 19, light, x + box_width - 1, y + 19, light, 1, 0);
+        C2D_DrawLine(x + 1, y + 20, dark, x + box_width - 1, y + 20, dark, 1, 0);
+    } else {
+        C2D_DrawLine(x + 2, y + 4, light, x + 2, y + 18, light, 1, 0);
+        C2D_DrawLine(x + 4, y + 19, light, x + box_width - 1, y + 19, light, 1, 0);
+        C2D_DrawLine(x + 4, y + 20, dark, x + box_width - 1, y + 20, dark, 1, 0);
+    }
+    C2D_DrawLine(x + 1, y + 5, dark, x + 5, y + 1, dark, 1, 0); //recover the top left line
+    C2D_DrawLine(x + box_width - 1, y + 20, dark, x + box_width + 2, y + 17, dark, 1, 0);
+    C2D_DrawLine(x + box_width + 1, y + 18, dark, x + box_width + 1, y + 2, dark, 1, 0);
+    draw_ipa_string(name_ipa, avatar_left + avatar_width + 1, y + 6, dark, 0);
+
+    C2D_SpriteSetPos(avatar->sprite, avatar_left, avatar_top);
+    C2D_SpriteSetDepth(avatar->sprite, 0);
+    C2D_DrawSprite(avatar->sprite);
+
+    ipa_string_destroy(&name_ipa);
+}
+
 void draw_chat_room_top(struct matrix_client_t* client) {
     C2D_SceneBegin(top);
     draw_background(client->graphics_state, 40, 0, TOP_WIDTH, TOP_HEIGHT);
@@ -584,7 +644,9 @@ void draw_chat_room_bottom(struct matrix_client_t* client) {
     C2D_DrawLine(36, 232, DARK_GREY, 41, 237, DARK_GREY, 1, 0);
     C2D_DrawLine(40, 236, DARK_GREY, 320, 236, DARK_GREY, 1, 0);
 
-    draw_message_box(client->graphics_state, 39, 52, 280, 5, true, BLACK, ORANGE);
+    // draw_message_box(client->graphics_state, 39, 52, 280, 5, true, BLACK, ORANGE);
+    matrix_event_t* user = matrix_room_get_user(client->current_room, client->login.user_id);
+    draw_message_box_text(client, user->room.member.display_name, "", user->room.member.avatar_url, 39, 52, 280, overlay_colour_dark, overlay_colour_light);
 
     draw_thin_box(39, 150, 44, 52, DARK_GREY, WHITE, true);
     draw_thin_box(39, 207, 44, 26, DARK_GREY, WHITE, true);

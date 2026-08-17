@@ -98,6 +98,7 @@ function(ipa_build_font_image)
             resources/gfx/font/bar.png
             resources/gfx/font/brace_close.png
             resources/gfx/font/tilde.png
+            resources/gfx/font/ellipses.png
             resources/gfx/font/unknown.png
 
             OPTIONS -f a4

@@ -45,10 +45,11 @@ int main(int argc, char** argv) {
     matrix_client_sync_account_data(&client);
     matrix_client_sync_directs(&client);
 
-    matrix_client_sync_dump(&client);
-    printf("Logged in and synced, good luck reading it\n");
+    // matrix_client_sync_dump(&client);
+    // printf("Logged in and synced, good luck reading it\n");
 
-    client.menu = MENU_DMS;
+    matrix_client_set_and_sync_room(&client, &client.rooms.data[0]);
+    client.menu = MENU_CHAT;
 
     while (aptMainLoop()) {
         // hidScanInput();

@@ -6,7 +6,7 @@ matrix_event_t matrix_make_event(json_t* json) {
     matrix_event_t event = {0};
 
     json_t* type_json = json_object_get(json, "type");
-    if (!type_json || json_is_string(type_json)) {
+    if (!type_json || !json_is_string(type_json)) {
         return event;
     }
     matrix_event_type_t type = matrix_event_type_from_str(json_string_value(type_json));

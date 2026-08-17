@@ -9,9 +9,19 @@
 #include "graphics.h"
 #include "../utils.h"
 
+typedef struct ipa_fontchar_t {
+    wchar_t character;
+    int8_t v_offset;
+    int8_t width;
+    int8_t h_offset;
+    C2D_Sprite glyph;
+} ipa_fontchar_t;
+
 C2D_SpriteSheet font_sheet;
 ipa_fontchar_t* font = nullptr;
 size_t font_size = 0;
+
+int EM10_WIDTH = 0;
 
 int init_font() {
     int res = -1;
@@ -74,6 +84,7 @@ int init_font() {
     fclose(info);
 
     res = 0;
+    EM10_WIDTH = get_string_width("mmmmmmmmmm");
     return res;
 
 error:
@@ -130,4 +141,116 @@ void draw_string(char const* str, int x, int y, u32 colour, float depth) {
 int get_char_width(wchar_t c) {
     ipa_fontchar_t* fontchar = get_fontchar(c);
     return fontchar->width;
+}
+
+int get_char_full_width(wchar_t c) {
+    ipa_fontchar_t* fontchar = get_fontchar(c);
+    return fontchar->h_offset + fontchar->width + 1; //offset from start, width, and 1 extra to get the full width (ie. where the next char would start).
+}
+
+int get_string_width(char const* str) {
+    int width = 0;
+    mbstate_t conv = {0};
+    size_t len = strlen(str);
+    while (*str) {
+        wchar_t c;
+        size_t offset = mbrtowc(&c, str, len, &conv);
+        if (offset == (size_t)-1) {
+            efuncprintf("Encoding error\n");
+            return -1;
+        }
+
+        str += offset;
+        len -= offset;
+
+        width += get_char_full_width(c);
+    }
+    return width;
+}
+
+int get_string_width_itr(char const* str, size_t* offset, int* width, mbstate_t* conv) {
+    if (*str == '\0') {
+        return -1;
+    }
+    size_t len = strlen(str);
+    wchar_t c;
+    size_t num = mbrtowc(&c, str + *offset, len - *offset, conv);
+    if (num == (size_t)-1) {
+        efuncprintf("Encoding error\n");
+        return -2;
+    }
+    *width += get_char_full_width(c);
+    *offset += num;
+    return 0;
+}
+
+ipa_string_t convert_string(char const* str) {
+    ipa_string_t result = {0};
+    mbstate_t conv = {0};
+    char const* str2 = str;
+    size_t nchars = mbsrtowcs(nullptr, &str2, 0, &conv);
+    if (nchars == (size_t)-1) {
+        efuncprintf("Failed to convert string\n");
+        return result;
+    }
+    result.str = malloc(sizeof(wchar_t) * (nchars + 1));
+    conv = (mbstate_t){0};
+    str2 = str;
+    mbsrtowcs(result.str, &str2, nchars + 1, &conv);
+    if (str2) {
+        efuncprintf("Failed to convert string\n");
+        free(result.str);
+        result.str = nullptr;
+    }
+    for (size_t i = 0; i < nchars; i++) {
+        result.width += get_char_full_width(result.str[i]);
+    }
+    return result;
+}
+
+void ipa_string_destroy(ipa_string_t* str) {
+    free(str->str);
+    str->str = nullptr;
+    str->width = 0;
+}
+
+void ipa_string_crop(ipa_string_t* str, int max_width) {
+    if (str->width <= max_width) {
+        return;
+    }
+    size_t len = wcslen(str->str);
+    int width = 0;
+    size_t i;
+    for (i = 0; i < len; i++) {
+        int full_width = get_char_full_width(str->str[i]);
+        if (width + full_width > max_width) {
+            str->str[i] = L'…';
+            str->str[i + 1] = L'\0';
+            width += get_char_full_width(str->str[i]);
+            break;
+        }
+        width += full_width;
+    }
+    str->width = width;
+    str->str = realloc(str->str, sizeof(wchar_t) * (i + 1));
+}
+
+ipa_string_t ipa_string_conv_crop(char const* str, int max_width) {
+    ipa_string_t result = convert_string(str);
+    ipa_string_crop(&result, max_width);
+    return result;
+}
+
+void draw_ipa_string(ipa_string_t str, int x, int y, u32 colour, float depth) {
+    C2D_ImageTint tint;
+    C2D_PlainImageTint(&tint, colour, 1);
+
+    size_t len = wcslen(str.str);
+    for (size_t i = 0; i < len; i++) {
+        ipa_fontchar_t* fontchar = get_fontchar(str.str[i]);
+        C2D_SpriteSetPos(&fontchar->glyph, x + fontchar->h_offset, y + fontchar->v_offset);
+        C2D_SpriteSetDepth(&fontchar->glyph, depth);
+        C2D_DrawSpriteTinted(&fontchar->glyph, &tint);
+        x += fontchar->width + 1;
+    }
 }
