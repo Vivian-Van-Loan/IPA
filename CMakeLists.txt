@@ -56,6 +56,8 @@ set(MATRIXC_SRCS
 		matrix/event/matrix-event-room.h
 		matrix/event/matrix-event-type.h
         matrix/event/matrix-event-type.c
+		graphics/messages.c
+		graphics/messages.h
 )
 
 add_executable(${PROJECT_NAME} ${MATRIXC_SRCS})
@@ -84,9 +86,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 ctr_generate_smdh(${PROJECT_NAME}.smdh
-        NAME "${PROJECT_NAME}"
-        DESCRIPTION "v${PROJECT_VERSION}"
-        AUTHOR "A Sickly Silver Moon"
+        NAME "IPA"
+        DESCRIPTION "A 3DS Matrix Client (v${PROJECT_VERSION})"
+        AUTHOR "Viviandra Van Loan"
         ICON "3DS IPA.png"
 )
 

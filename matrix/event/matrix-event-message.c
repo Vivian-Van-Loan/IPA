@@ -62,7 +62,7 @@ matrix_message_t matrix_make_message(json_t* event_json) {
     if (!content_json || !json_is_object(content_json)) {
         return message;
     }
-    json_t* msg_type = json_object_get(content_json, "type");
+    json_t* msg_type = json_object_get(content_json, "msgtype");
     if (!msg_type) {
         msg_type = json_object_get(event_json, "type");
         if (!msg_type || !json_is_string(msg_type)) {

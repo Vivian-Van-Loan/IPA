@@ -7,6 +7,8 @@
 
 #include <citro2d.h>
 
+#include "../../types/general_types.h"
+
 typedef struct ipa_string_t {
     wchar_t* str;
     int width;
@@ -17,6 +19,8 @@ extern int EM10_WIDTH;
 int init_font();
 void destroy_font();
 void draw_string(char const* str, int x, int y, u32 colour, float depth);
+void draw_string_until(char const* str, int x, int y, u32 colour, float depth, size_t until);
+pair$int$size_t$ draw_string_max_width(char const* str, int x, int y, u32 colour, float depth, int max_width); //returns the width it did draw
 
 int get_char_width(wchar_t c);
 int get_char_full_width(wchar_t c);

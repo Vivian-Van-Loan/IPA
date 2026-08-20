@@ -22,4 +22,12 @@ void alloc_void_free(alloc_void* void_p);
 #define TEMPLATE_EQUAL_FUNC(lhs, rhs) (strcmp((lhs), (rhs)) == 0)
 #include "hash_map.h"
 
+#define TEMPLATE_TYPE_K int
+#define TEMPLATE_TYPE_V size_t
+#include "pair.h"
+
+#define TEMPLATE_TYPE_K float
+#define TEMPLATE_TYPE_V float
+#include "pair.h"
+
 #endif //MATRIX_CLIENT_GENERAL_TYPES_H

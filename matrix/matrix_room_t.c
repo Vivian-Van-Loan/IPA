@@ -52,13 +52,13 @@ bool matrix_room_add_user(matrix_room_t* room, matrix_event_t* user_event) { //r
     if (!user_event || user_event->type.first != EVENT_ROOM_MEMBER) {
         return false;
     }
-    matrix_event_t* exist = matrix_room_get_user(room, user_event->sender);
-    if (exist && exist->origin_server_ts < user_event->origin_server_ts) { //again probably unneeded on this sweep which is building members, but will be useful for future sweeps
+    matrix_event_t* exist = matrix_room_get_user(room, user_event->state_key);
+    if (exist && exist->origin_server_ts > user_event->origin_server_ts) { //again probably unneeded on this sweep which is building members, but will be useful for future sweeps
         return false;
     } else if (exist) {
-        hash_map$str_const$matrix_event_t$_remove(&room->users, user_event->sender);
+        hash_map$str_const$matrix_event_t$_remove(&room->users, user_event->state_key);
     }
-    hash_map$str_const$matrix_event_t$_add(&room->users, user_event->sender, *user_event);
+    hash_map$str_const$matrix_event_t$_add(&room->users, user_event->state_key, *user_event);
     return true;
 }
 
@@ -106,6 +106,7 @@ void matrix_room_add_events(matrix_room_t* room, json_t* events, bool reverse) {
     json_array_foreach(events, index_i, value_inner) {
         bool destroy_event = false;
         matrix_event_t event = matrix_make_event(value_inner);
+        // if (!event.unsigned_data.replaces_state) { //todo: figure this mess out. Its extra hard when iterating from the bottom
         if (event.type.first == EVENT_ROOM_MEMBER) {
             if (!matrix_room_add_user(room, &event)) {
                 destroy_event = true;
@@ -134,6 +135,27 @@ void matrix_room_add_events(matrix_room_t* room, json_t* events, bool reverse) {
             }
             destroy_event = true;
         }
+        // } else {
+        //     if (event.type.first == EVENT_ROOM_MEMBER) {
+        //         matrix_event_t* user = matrix_room_get_user(room, event.state_key);
+        //         if (user && strcmp(user->id, event.unsigned_data.replaces_state) == 0) {
+        //             hash_map$str_const$matrix_event_t$_remove(&room->users, event.state_key);
+        //             matrix_room_add_user(room, &event); //remove old event and add the replacing one
+        //             destroy_event = false;
+        //         }
+        //     } else {
+        //         for (size_t i = 0; i < room->events.count; i++) {
+        //             matrix_event_t* old = &room->events.data[i];
+        //             matrix_event_t old_copy = *old;
+        //             if (strcmp(old->id, event.unsigned_data.replaces_state) == 0) {
+        //                 matrix_event_destroy(&old_copy);
+        //                 *old = event;
+        //                 destroy_event = false;
+        //                 break;
+        //             }
+        //         }
+        //     }
+        // }
 
         if (destroy_event) {
             matrix_event_destroy(&event);

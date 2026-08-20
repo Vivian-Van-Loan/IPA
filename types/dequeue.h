@@ -63,6 +63,7 @@ TEMPLATE_INLINE TEMPLATE_TYPE* TEMPLATE_FUNC(push_empty)(TEMPLATE_STRUCT* deq) {
         TEMPLATE_FUNC(grow)(deq);
     }
     deq->data--;
+    deq->count++;
     return &deq->data[0];
 }
 

@@ -280,12 +280,19 @@ int matrix_client_load_current_room(matrix_client_t* client, bool reverse) {
     if (room->end) {
         snprintf(buf, sizeof(buf), "from=%s", room->end);
         res = curl_url_set(url, CURLUPART_QUERY, buf, CURLU_APPENDQUERY);
-        if (res != CURLUE_OK)
+        if (res != CURLUE_OK) {
             goto url_error;
+        }
+    }
+    char* complete_url;
+    res = curl_url_get(url, CURLUPART_URL, &complete_url, 0);
+    if (res != CURLUE_OK) {
+        goto url_error;
     }
 
     json_t* response = nullptr;
-    char* response_str = matrix_get_string(&client->login, buf);
+    char* response_str = matrix_get_string(&client->login, complete_url);
+    curl_free(complete_url);
     if (!response_str) {
         efuncprintf("Failed to download sync json\n");
         goto error;
@@ -297,7 +304,12 @@ int matrix_client_load_current_room(matrix_client_t* client, bool reverse) {
         efuncprintf("Failed to parse sync json\n");
         goto error;
     }
-    matrix_room_add_events(room, response, reverse);
+    json_t* chunk = json_object_get(response, "chunk");
+    if (!chunk || !json_is_array(chunk)) {
+        efuncprintf("Failed to get chunk from sync json\n");
+        goto error;
+    }
+    matrix_room_add_events(room, chunk, reverse);
 
     json_t* end = json_object_get(response, "end");
     if (end && json_is_string(end)) {

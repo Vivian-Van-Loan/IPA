@@ -35,6 +35,11 @@ constexpr u32 LIGHT_GREY = C2D_Color32c(0xBA, 0xBA, 0xBA, 0xFF);
 constexpr u32 SUPER_LIGHT_GREY = C2D_Color32c(0xEB, 0xEB, 0xEB, 0xFF);
 constexpr u32 ORANGE = C2D_Color32c(0xFB, 0x69, 0x00, 0xFF);
 
+#define COORD_OFFSET 0.0625f
+
+#define C2D_DrawLineFix(x0, y0, clr0, x1, y1, clr1, thickness, depth) C2D_DrawLine(x0 + COORD_OFFSET, y0 + COORD_OFFSET, clr0, x1 + COORD_OFFSET, y1 + COORD_OFFSET, clr1, thickness, depth)
+#define C2D_DrawRectSolidFix(x, y, z, w, h, clr) C2D_DrawRectSolid(x + COORD_OFFSET, y + COORD_OFFSET, z, w, h, clr)
+
 u32 C2D_Color_Overlay(u32 base, u32 overlay);
 
 int init_graphics();
