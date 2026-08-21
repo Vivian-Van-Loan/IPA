@@ -2,6 +2,32 @@
 
 #include "../../utils.h"
 
+matrix_event_relates_to_t matrix_make_relates_to(json_t const* relates_to_json) {
+    matrix_event_relates_to_t relates_to = {0};
+    if (relates_to_json && json_is_object(relates_to_json)) {
+        json_t* rel_type = json_object_get(relates_to_json, "rel_type");
+        json_t* event_id = json_object_get(relates_to_json, "event_id");
+        if (rel_type && json_is_string(rel_type)) {
+            char* rel_type_str = strdup(json_string_value(rel_type));
+            if (strcmp(rel_type_str, "m.replace") == 0) {
+                relates_to.rel_type = MATRIX_REL_TYPE_REPLACE;
+            } else if (strcmp(rel_type_str, "m.annotation") == 0) {
+                relates_to.rel_type = MATRIX_REL_TYPE_ANNOTATION;
+            } else if (strcmp(rel_type_str, "m.thread") == 0) {
+                relates_to.rel_type = MATRIX_REL_TYPE_THREAD;
+            } else if (strcmp(rel_type_str, "m.reference") == 0) {
+                relates_to.rel_type = MATRIX_REL_TYPE_REFERENCE;
+            }
+        }
+        if (event_id && json_is_string(event_id)) {
+            relates_to.event_id = strdup(json_string_value(event_id));
+        }
+    }
+    return relates_to;
+    //todo: great, replacement events shove their actual replacement content into an "m.new_content" block, using the standard "content" block as, some form of fallback
+    // not looking forward to handling that somehow, good luck
+}
+
 matrix_event_t matrix_make_event(json_t* json) {
     matrix_event_t event = {0};
 
@@ -60,11 +86,17 @@ matrix_event_t matrix_make_event(json_t* json) {
         json_t* replaces = json_object_get(unsigned_data, "replaces_state");
         if (replaces && json_is_string(replaces)) {
             event.unsigned_data.replaces_state = strdup(json_string_value(replaces));
+            event.unsigned_data.replaced = false;
         }
         json_t* transaction_id = json_object_get(unsigned_data, "transaction_id");
         if (transaction_id && json_is_string(transaction_id)) {
             event.unsigned_data.transaction_id = strdup(json_string_value(transaction_id));
         }
+    }
+
+    json_t* content = json_object_get(json, "content");
+    if (content && json_is_object(content)) {
+        event.relates_to = matrix_make_relates_to(json_object_get(content, "m.relates_to"));
     }
 
     return event;

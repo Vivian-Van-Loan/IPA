@@ -23,6 +23,7 @@ TEMPLATE_INLINE TEMPLATE_TYPE* TEMPLATE_FUNC(insert_empty_at)(TEMPLATE_STRUCT* v
 TEMPLATE_INLINE TEMPLATE_TYPE* TEMPLATE_FUNC(insert_at)(TEMPLATE_STRUCT* vec, size_t idx, TEMPLATE_TYPE value);
 TEMPLATE_INLINE TEMPLATE_TYPE* TEMPLATE_FUNC(get)(TEMPLATE_STRUCT* vec, size_t idx);
 TEMPLATE_INLINE void TEMPLATE_FUNC(remove)(TEMPLATE_STRUCT* vec, size_t idx);
+TEMPLATE_INLINE TEMPLATE_TYPE* TEMPLATE_FUNC(replace)(TEMPLATE_STRUCT* vec, size_t idx, TEMPLATE_TYPE value);
 TEMPLATE_INLINE void TEMPLATE_FUNC(resize)(TEMPLATE_STRUCT* vec, size_t new_capacity);
 TEMPLATE_INLINE void TEMPLATE_FUNC(shrink)(TEMPLATE_STRUCT* vec);
 // #endif
@@ -106,6 +107,16 @@ TEMPLATE_INLINE TEMPLATE_TYPE* TEMPLATE_FUNC(get)(TEMPLATE_STRUCT* vec, size_t i
 TEMPLATE_INLINE void TEMPLATE_FUNC(remove)(TEMPLATE_STRUCT* vec, size_t idx) {
     memcpy(vec->data + idx, vec->data + (idx + 1), (vec->count - idx - 1) * sizeof(TEMPLATE_TYPE));
     vec->count--;
+}
+
+TEMPLATE_INLINE TEMPLATE_TYPE* TEMPLATE_FUNC(replace)(TEMPLATE_STRUCT* vec, size_t idx, TEMPLATE_TYPE value) {
+    TEMPLATE_TYPE* entry = vec->data + idx;
+#ifdef TEMPLATE_TYPE_IS_ARRAY
+    memcpy(*entry, value, sizeof(TEMPLATE_TYPE));
+#else
+    *entry = value;
+#endif
+    return entry;
 }
 
 TEMPLATE_INLINE void TEMPLATE_FUNC(resize)(TEMPLATE_STRUCT* vec, size_t new_capacity) {

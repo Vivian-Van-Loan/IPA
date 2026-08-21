@@ -21,6 +21,7 @@ TEMPLATE_INLINE TEMPLATE_TYPE* TEMPLATE_FUNC(push)(TEMPLATE_STRUCT* deq, TEMPLAT
 TEMPLATE_INLINE TEMPLATE_TYPE* TEMPLATE_FUNC(push_back_empty)(TEMPLATE_STRUCT* deq);
 TEMPLATE_INLINE TEMPLATE_TYPE* TEMPLATE_FUNC(push_back)(TEMPLATE_STRUCT* deq, TEMPLATE_TYPE value);
 TEMPLATE_INLINE void TEMPLATE_FUNC(remove)(TEMPLATE_STRUCT* deq, size_t idx);
+TEMPLATE_INLINE TEMPLATE_TYPE* TEMPLATE_FUNC(replace)(TEMPLATE_STRUCT* deq, size_t idx, TEMPLATE_TYPE value);
 TEMPLATE_INLINE void TEMPLATE_FUNC(resize_keep_front)(TEMPLATE_STRUCT* deq, size_t new_capacity);
 TEMPLATE_INLINE void TEMPLATE_FUNC(resize_keep_back)(TEMPLATE_STRUCT* deq, size_t new_capacity);
 TEMPLATE_INLINE void TEMPLATE_FUNC(shrink)(TEMPLATE_STRUCT* deq);
@@ -109,6 +110,16 @@ TEMPLATE_INLINE void TEMPLATE_FUNC(remove)(TEMPLATE_STRUCT* deq, size_t idx) {
         memmove(deq->data + idx - 1, deq->data + idx, (deq->count - idx) * sizeof(TEMPLATE_TYPE));
         deq->count--;
     }
+}
+
+TEMPLATE_INLINE TEMPLATE_TYPE* TEMPLATE_FUNC(replace)(TEMPLATE_STRUCT* deq, size_t idx, TEMPLATE_TYPE value) {
+    TEMPLATE_TYPE* entry = deq->data + idx;
+
+#ifdef TEMPLATE_TYPE_IS_ARRAY
+    memcpy(*entry, value, sizeof(TEMPLATE_TYPE));
+#else
+    *entry = value;
+#endif
 }
 
 TEMPLATE_INLINE void TEMPLATE_FUNC(resize_keep_front)(TEMPLATE_STRUCT* deq, size_t new_capacity) {

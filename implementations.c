@@ -6,7 +6,6 @@
 #define TEMPLATE_IMPLEMENTATION
 #include "types/general_types.h"
 #include "matrix/matrix_room_t.h"
-#include "matrix/matrix_user_t.h"
 #include "graphics/images.h"
 #include "graphics/graphics.h"
 #include "utils.h"

@@ -253,6 +253,9 @@ int get_string_width_itr(char const* str, size_t* offset, int* width, mbstate_t*
 
 ipa_string_t convert_string(char const* str) {
     ipa_string_t result = {0};
+    if (!str) {
+        return result;
+    }
     mbstate_t conv = {0};
     char const* str2 = str;
     size_t nchars = mbsrtowcs(nullptr, &str2, 0, &conv);
@@ -281,12 +284,11 @@ void ipa_string_destroy(ipa_string_t* str) {
     str->width = 0;
 }
 
-//note: because of how we calc width and lazily crop, we can actually go over max width by a few. Shouldn't really matter in practice, just note its not exact
 void ipa_string_crop(ipa_string_t* str, int max_width) {
     wchar_t crop_c = L'…';
     wchar_t nul_c = L'\0';
 
-    if (str->width <= max_width) {
+    if (!str->str || str->width <= max_width) {
         return;
     }
     size_t len = wcslen(str->str);
@@ -324,6 +326,10 @@ ipa_string_t ipa_string_conv_crop(char const* str, int max_width) {
 }
 
 void draw_ipa_string(ipa_string_t str, int x, int y, u32 colour, float depth) {
+    if (!str.str) {
+        return;
+    }
+
     C2D_ImageTint tint;
     C2D_PlainImageTint(&tint, colour, 1);
 

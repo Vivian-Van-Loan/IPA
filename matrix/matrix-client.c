@@ -274,7 +274,7 @@ int matrix_client_load_current_room(matrix_client_t* client, bool reverse) {
     }
     if (res != CURLUE_OK)
         goto url_error;
-    res = curl_url_set(url, CURLUPART_QUERY, "limit=15", CURLU_APPENDQUERY);
+    res = curl_url_set(url, CURLUPART_QUERY, "limit=20", CURLU_APPENDQUERY);
     if (res != CURLUE_OK)
         goto url_error;
     if (room->end) {

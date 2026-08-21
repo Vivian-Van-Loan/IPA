@@ -4,7 +4,6 @@
 #include <jansson.h>
 
 #include "login.h"
-#include "matrix_user_t.h"
 #include "matrix_room_t.h"
 #include "event/matrix-event.h"
 

@@ -5,16 +5,11 @@
 #include <string.h>
 #include <jansson.h>
 
-#include "matrix_user_t.h"
 #include "event/matrix-event.h"
-
-#define TEMPLATE_TYPE matrix_user_t
-#include "../types/vector.h"
 
 #define TEMPLATE_TYPE matrix_event_t
 #include "../types/dequeue.h"
 
-typedef matrix_user_t* matrix_user_t_p;
 #define TEMPLATE_TYPE_K str_const
 #define TEMPLATE_TYPE_V matrix_event_t
 #define TEMPLATE_EQUAL_FUNC(lhs, rhs) (strcmp((lhs), (rhs)) == 0)
@@ -22,7 +17,6 @@ typedef matrix_user_t* matrix_user_t_p;
 
 typedef struct matrix_room_t {
     char* id;
-    // vector$matrix_user_t$ associated_users;
     hash_map$str_const$matrix_event_t$ users;
     dequeue$matrix_event_t$ events;
     char* name;

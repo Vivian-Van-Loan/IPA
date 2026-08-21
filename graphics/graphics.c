@@ -509,7 +509,7 @@ void draw_thin_box(int x, int y, int w, int h, u32 outline, u32 inside, bool fil
     C2D_DrawLineFix(x + 0, y + 5, outline, x + 5,y + 0, outline, 1, 0); //top left corner
 }
 
-int draw_message_box(struct ipa_graphics_state_t* graphics, int x, int y, int w, int num_lines, bool draw_lines, u32 dark, u32 light) {
+int draw_message_box(struct ipa_graphics_state_t* graphics, int x, int y, int w, int num_lines, bool draw_lines, u32 dark, u32 light, u32 back) {
     int h;
     if (num_lines == 1) {
         h = 22;
@@ -517,7 +517,7 @@ int draw_message_box(struct ipa_graphics_state_t* graphics, int x, int y, int w,
         h = 40 + (num_lines - 2) * 18 + 1;
     }
 
-    draw_thin_box(x, y, w, h, WHITE, WHITE, true);
+    draw_thin_box(x, y, w, h, back, back, true);
 
     //dark border
     C2D_DrawLineFix(x + 4, y + 1, dark, x + w - 5, y + 1, dark, 1, 0); //top left to top right
@@ -539,17 +539,24 @@ int draw_message_box(struct ipa_graphics_state_t* graphics, int x, int y, int w,
     return h;
 }
 
-int draw_message_box_text(matrix_client_t* client, char const* name, char const* text, char const* avatar_url, int x, int y, int w, u32 dark, u32 light, int max_lines) {
+int draw_message_box_text(matrix_client_t* client, char const* name, char const* text, char const* avatar_url, int x, int y, int w, u32 dark, u32 light, u32 back, u32 text_c, int max_lines) {
     int avatar_width = 16;
     int avatar_left = x + 4;
     int avatar_top = y + 3;
     ipa_image_t* avatar = get_avatar(client, avatar_url, 16, 16);
     image_load_vram(avatar);
+    if (!avatar) {
+        avatar_left = x;
+        avatar_width = 0;
+    }
 
     ipa_string_t name_ipa = ipa_string_conv_crop(name, EM10_WIDTH); //honestly the allocation and crop shouldn't matter
 
     int const v_text_offset = 7;
     int box_width = (avatar_left - x) + avatar_width + 1 + name_ipa.width; //actually the inner portion, not the outer
+    if (avatar_width == 0 && name_ipa.width == 0) {
+        box_width = 0;
+    }
 
     int const w_text_pad = 5 + 2; //5 pixels from box edge, 2 pixels for box edge
     int text_y = y + v_text_offset;
@@ -559,29 +566,31 @@ int draw_message_box_text(matrix_client_t* client, char const* name, char const*
     size_t offset = 0;
     size_t len = strlen(text);
     while (text_y < BOTTOM_HEIGHT && (num_lines < max_lines || max_lines <= 0) && offset < len) {
-        C2D_DrawRectSolidFix(text_x, text_y, 0, text_width, 14, WHITE); //cover up an alpha-depth compositing problem
-        pair$int$size_t$ result = draw_string_max_width(text + offset, text_x, text_y, BLACK, 0.05f, text_width);
+        C2D_DrawRectSolidFix(text_x, text_y, 0, text_width, 14, back); //cover up an alpha-depth compositing problem
+        pair$int$size_t$ result = draw_string_max_width(text + offset, text_x, text_y, text_c, 0.05f, text_width);
         offset += result.second;
         text_y += 18;
         text_x = x + w_text_pad;
         text_width = (w - w_text_pad * 2); //since w is entire box width we have to take the padding from both sides off
         num_lines++;
     }
-    int h = draw_message_box(client->graphics_state, x, y, w, num_lines, true, dark, light);
+    int h = draw_message_box(client->graphics_state, x, y, w, num_lines, true, dark, light, back);
 
-    C2D_DrawRectSolidFix(x + 3, y + 2, 0, box_width - 2, 17, light);
-    if (num_lines > 1) {
-        C2D_DrawLineFix(x + 2, y + 4, light, x + 2, y + 20, light, 1, 0);
-        C2D_DrawLineFix(x + 2, y + 19, light, x + box_width - 1, y + 19, light, 1, 0);
-        C2D_DrawLineFix(x + 1, y + 20, dark, x + box_width - 1, y + 20, dark, 1, 0);
-    } else {
-        C2D_DrawLineFix(x + 2, y + 4, light, x + 2, y + 18, light, 1, 0);
-        C2D_DrawLineFix(x + 4, y + 19, light, x + box_width - 1, y + 19, light, 1, 0);
-        C2D_DrawLineFix(x + 4, y + 20, dark, x + box_width - 1, y + 20, dark, 1, 0);
+    if (box_width) {
+        C2D_DrawRectSolidFix(x + 3, y + 2, 0, box_width - 2, 17, light);
+        if (num_lines > 1) {
+            C2D_DrawLineFix(x + 2, y + 4, light, x + 2, y + 20, light, 1, 0);
+            C2D_DrawLineFix(x + 2, y + 19, light, x + box_width - 1, y + 19, light, 1, 0);
+            C2D_DrawLineFix(x + 1, y + 20, dark, x + box_width - 1, y + 20, dark, 1, 0);
+        } else {
+            C2D_DrawLineFix(x + 2, y + 4, light, x + 2, y + 18, light, 1, 0);
+            C2D_DrawLineFix(x + 4, y + 19, light, x + box_width - 1, y + 19, light, 1, 0);
+            C2D_DrawLineFix(x + 4, y + 20, dark, x + box_width - 1, y + 20, dark, 1, 0);
+        }
+        C2D_DrawLineFix(x + 1, y + 5, dark, x + 5, y + 1, dark, 1, 0); //recover the top left line
+        C2D_DrawLineFix(x + box_width - 1, y + 20, dark, x + box_width + 2, y + 17, dark, 1, 0);
+        C2D_DrawLineFix(x + box_width + 1, y + 18, dark, x + box_width + 1, y + 2, dark, 1, 0);
     }
-    C2D_DrawLineFix(x + 1, y + 5, dark, x + 5, y + 1, dark, 1, 0); //recover the top left line
-    C2D_DrawLineFix(x + box_width - 1, y + 20, dark, x + box_width + 2, y + 17, dark, 1, 0);
-    C2D_DrawLineFix(x + box_width + 1, y + 18, dark, x + box_width + 1, y + 2, dark, 1, 0);
 
     if (avatar) {
         C2D_SpriteSetPos(avatar->sprite, avatar_left, avatar_top);
@@ -596,21 +605,53 @@ int draw_message_box_text(matrix_client_t* client, char const* name, char const*
 }
 
 int draw_event(matrix_client_t* client, matrix_event_t* event, int x, int y, int w) {
-    if (!event_is_message(event->type.first)) {
-        return 0;
+    if (event_is_message(event->type.first)) {
+        matrix_message_t message = event->message;
+        if (!message.body) {
+            return 0;
+        }
+        matrix_event_t* sender = matrix_room_get_user(client->current_room, event->sender);
+        char const* name = nullptr;
+        char const* url = nullptr;
+        if (sender && sender->type.first == EVENT_ROOM_MEMBER) {
+            name = sender->room.member.display_name;
+            url = sender->room.member.avatar_url;
+        }
+        return draw_message_box_text(client, name, message.body, url, x, y, w, overlay_colour_dark, overlay_colour_light, WHITE, BLACK, 0);
+    } else if (event_is_room(event->type.first)) {
+        char const* text;
+        u32 back = BLACK;
+        u32 text_c = SILVER;
+        u32 light = WHITE; //never actually rendered
+        u32 dark = WHITE;
+        switch (event->type.first) {
+            case EVENT_ROOM_CREATE:
+                text = "Room created";
+                break;
+            case EVENT_ROOM_NAME:
+                text = "Room name changed";
+                break;
+            case EVENT_ROOM_AVATAR:
+                text = "Room avatar changed";
+                break;
+            case EVENT_ROOM_TOPIC:
+                text = "Room topic changed";
+                break;
+            case EVENT_ROOM_MEMBER:
+                text = "User joined";
+                break;
+            case EVENT_ROOM_POWER_LEVELS:
+            case EVENT_ROOM_REDACTION:
+            case EVENT_ROOM_JOIN_RULES:
+            case EVENT_ROOM_CANON_ALIAS:
+            case EVENT_ROOM_ENCRYPT:
+            default:
+                return 0;
+        }
+
+        return draw_message_box_text(client, nullptr, text, nullptr, x, y, w, dark, light, back, text_c, 1);
     }
-    matrix_message_t message = event->message;
-    if (!message.body) {
-        return 0;
-    }
-    matrix_event_t* sender = matrix_room_get_user(client->current_room, event->sender);
-    char const* name = nullptr;
-    char const* url = nullptr;
-    if (sender && sender->type.first == EVENT_ROOM_MEMBER) {
-        name = sender->room.member.display_name;
-        url = sender->room.member.avatar_url;
-    }
-    return draw_message_box_text(client, name, message.body, url, x, y, w, overlay_colour_dark, overlay_colour_light, 0);
+    return 0;
 }
 
 void draw_chat_room_top(struct matrix_client_t* client) {
@@ -620,18 +661,14 @@ void draw_chat_room_top(struct matrix_client_t* client) {
     draw_bevel_box(client->graphics_state, 360, 0, 40, 240, DARK_GREY, BLACK, ORANGE, BLACK, 0.25f);
 
     dequeue$matrix_event_t$* events = &client->current_room->events;
-    int y = 0;
+    int y = 1;
     for (size_t i = 0; i < events->count; i++) {
         matrix_event_t* event = &events->data[i];
-        int offset = draw_event(client, event, 40, y, 320);
+        int offset = draw_event(client, event, 40 + 2, y, 320 - 3);
         if (offset) {
-            y += offset + 1;
+            y += offset + 2;
         }
     }
-
-    // draw_message_box_text(client, "Waga baga boo boo dipfuck",
-    // "What the fuck did you just fucking say about me, you little bitch? I'll have you know I graduated top of my class in the Navy Seals, and I've been involved in numerous secret raids on Al-Quaeda, and I have over 300 confirmed kills. I am trained in gorilla warfare and I'm the top sniper in the entire US armed forces. You are nothing to me but just another target. I will wipe you the fuck out with precision the likes of which has never been seen before on this Earth, mark my fucking words. You think you can get away with saying that shit to me over the Internet? Think again, fucker. As we speak I am contacting my secret network of spies across the USA and your IP is being traced right now so you better prepare for the storm, maggot. The storm that wipes out the pathetic little thing you call your life. You're fucking dead, kid. I can be anywhere, anytime, and I can kill you in over seven hundred ways, and that's just with my bare hands. Not only am I extensively trained in unarmed combat, but I have access to the entire arsenal of the United States Marine Corps and I will use it to its full extent to wipe your miserable ass off the face of the continent, you little shit. If only you could have known what unholy retribution your little \"clever\" comment was about to bring down upon you, maybe you would have held your fucking tongue. But you couldn't, you didn't, and now you're paying the price, you goddamn idiot. I will shit fury all over you and you will drown in it. You're fucking dead, kiddo.",
-    // nullptr, 40, -210, 320, overlay_colour_dark, overlay_colour_light, 0);
 }
 
 void draw_keyboard_key(char c, int x, int y) {
@@ -699,7 +736,7 @@ void draw_chat_room_bottom(struct matrix_client_t* client) {
     matrix_event_t* user = matrix_room_get_user(client->current_room, client->login.user_id);
     draw_message_box_text(client, user->room.member.display_name,
         "Hello everybody my name is Markiplier and welcome to Five Nights at Freddies, an indie horror game that you guys suggested in mass, and I saw that Yamimash played it and he said that it was really really good; so I'm very eager to see what is up - and that is a terrifying animatronic bear reads off script family pizzeria looking for security guard to work the night shift. Oh, 12:00 A.M, the first night. If I didn’t want to stay the first night, why would I stay any more than five? Why would I say anymore than two - hello. Okay...Hello? Hello - oh, ah I can’t move. That’s a creepy skull...There’s creepy things on the wall - Oh, hello.",
-        user->room.member.avatar_url, 39, 52, 280, overlay_colour_dark, overlay_colour_light, 5);
+        user->room.member.avatar_url, 39, 52, 280, overlay_colour_dark, overlay_colour_light, WHITE, BLACK, 5);
 
     draw_thin_box(39, 150, 44, 52, DARK_GREY, WHITE, true);
     draw_thin_box(39, 207, 44, 26, DARK_GREY, WHITE, true);

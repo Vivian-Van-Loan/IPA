@@ -39,9 +39,7 @@ set(MATRIXC_SRCS
 		types/vector.h
 		types/general_types.h
 		types/general_types.c
-		matrix/matrix_user_t.c
-		matrix/matrix_user_t.h
-		matrix/matrix_room_t.c
+        matrix/matrix_room_t.c
 		matrix/matrix_room_t.h
 		implementations.c
 		graphics/images.c
