@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
     matrix_login_from_save(&client.login, false);
     if (!client.login.logged_in) {
         eprintf("Refreshing login failed, attempting password login\n");
-        matrix_login_pass(&client.login, "toasterwaffle.win", "alice", "STRIPPED_OUT", "IPA-testing");
+        matrix_login_pass(&client.login, "toasterwaffle.win", "alice", "STRIPPED_OUT", nullptr);
     }
     matrix_client_sync_account_data(&client);
     matrix_client_sync_directs(&client);

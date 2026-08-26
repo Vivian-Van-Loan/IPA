@@ -120,6 +120,7 @@ TEMPLATE_INLINE TEMPLATE_TYPE* TEMPLATE_FUNC(replace)(TEMPLATE_STRUCT* deq, size
 #else
     *entry = value;
 #endif
+    return entry;
 }
 
 TEMPLATE_INLINE void TEMPLATE_FUNC(resize_keep_front)(TEMPLATE_STRUCT* deq, size_t new_capacity) {
@@ -174,3 +175,5 @@ TEMPLATE_INLINE void TEMPLATE_FUNC(resize_keep_back)(TEMPLATE_STRUCT* deq, size_
 TEMPLATE_INLINE void TEMPLATE_FUNC(shrink)(TEMPLATE_STRUCT* deq) {
     TEMPLATE_FUNC(resize_keep_front)(deq, deq->count);
 }
+
+#include "template_end.h"

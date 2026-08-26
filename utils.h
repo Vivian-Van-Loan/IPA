@@ -67,6 +67,7 @@ pair$alloc_str$long$ http_get_string(char const* url);
 pair$alloc_void$long$ http_get_data(char const* url);
 long http_get_file(char const* url, char const* path);
 pair$alloc_str$long$ post_json_string(char const* url, char const* json);
+pair$alloc_void$long$ post_json_data(char const* url, char const* json);
 long post_json_file(char const* url, char const* json, char const* path);
 
 off_t get_file_size(char const* path);

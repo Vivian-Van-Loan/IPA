@@ -99,7 +99,6 @@ void matrix_room_add_events(matrix_room_t* room, json_t* events, bool reverse) {
         efuncprintf("provided with non-array event json!");
         return;
     }
-    size_t size = json_array_size(events);
 
     size_t index_i;
     json_t* value_inner;

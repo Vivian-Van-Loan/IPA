@@ -30,7 +30,7 @@ json_t* make_empty_filter() {
 char* install_filter(matrix_client_t* client, json_t const* filter_json) {
     char* ret = nullptr;
     char* json_str = json_dumps(filter_json, JSON_COMPACT);
-    printf("%s\n", json_str);
+    // printf("%s\n", json_str);
 
     char buf[URL_BUFFER_SIZE];
     snprintf(buf, sizeof(buf), "%s/_matrix/client/v3/user/%s/filter", client->login.homeserver_resolved, client->login.user_id);
@@ -304,6 +304,9 @@ int matrix_client_load_current_room(matrix_client_t* client, bool reverse) {
         efuncprintf("Failed to parse sync json\n");
         goto error;
     }
+    char const* DUMP_PATH = SAVE_DIR"room_load.json"; //todo: TEMP! REMOVE
+    json_dump_file(response, DUMP_PATH, JSON_COMPACT);
+
     json_t* chunk = json_object_get(response, "chunk");
     if (!chunk || !json_is_array(chunk)) {
         efuncprintf("Failed to get chunk from sync json\n");

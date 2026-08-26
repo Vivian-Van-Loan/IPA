@@ -311,6 +311,11 @@ pair$alloc_str$long$ post_json_string(char const* url, char const* json) {
     return download_to_string(url);
 }
 
+pair$alloc_void$long$ post_json_data(char const* url, char const* json) {
+    curl_easy_setopt(curl_handle, CURLOPT_POSTFIELDS, json);
+    return download_to_data(url);
+}
+
 long post_json_file(char const* url, char const* json, char const* path) {
     curl_easy_setopt(curl_handle, CURLOPT_POSTFIELDS, json);
     return get_file(url, path);

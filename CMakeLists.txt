@@ -56,6 +56,8 @@ set(MATRIXC_SRCS
         matrix/event/matrix-event-type.c
 		graphics/messages.c
 		graphics/messages.h
+        work_queue.c
+		work_queue.h
 )
 
 add_executable(${PROJECT_NAME} ${MATRIXC_SRCS})

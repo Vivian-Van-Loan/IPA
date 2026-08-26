@@ -14,13 +14,17 @@ typedef struct ipa_string_t {
     int width;
 } ipa_string_t;
 
-extern int EM10_WIDTH;
+#define TEMPLATE_TYPE_K size_t
+#define TEMPLATE_TYPE_V ipa_string_t
+#include "../types/pair.h"
+
+extern int MAX_NAME_WIDTH;
 
 int init_font();
 void destroy_font();
 void draw_string(char const* str, int x, int y, u32 colour, float depth);
 void draw_string_until(char const* str, int x, int y, u32 colour, float depth, size_t until);
-pair$int$size_t$ draw_string_max_width(char const* str, int x, int y, u32 colour, float depth, int max_width); //returns the width it did draw
+pair$int$size_t$ draw_string_max_width(char const* str, int x, int y, u32 colour, float depth, int max_width, bool crop_lead_whitespace); //returns the width it did draw
 
 int get_char_width(wchar_t c);
 int get_char_full_width(wchar_t c);
@@ -28,9 +32,11 @@ int get_string_width(char const* str);
 int get_string_width_itr(char const* str, size_t* offset, int* width, mbstate_t* conv);
 
 ipa_string_t convert_string(char const* str);
+ipa_string_t ipa_string_conv_crop(char const* str, int max_width, wchar_t crop_c);
+pair$size_t$ipa_string_t$ ipa_string_conv_max_width(char const* str, int max_width, bool crop_lead_whitespace);
+
 void ipa_string_destroy(ipa_string_t* str);
-void ipa_string_crop(ipa_string_t* str, int max_width);
-ipa_string_t ipa_string_conv_crop(char const* str, int max_width);
+void ipa_string_crop(ipa_string_t* str, int max_width, wchar_t crop_c);
 void draw_ipa_string(ipa_string_t str, int x, int y, u32 colour, float depth);
 
 #endif //MATRIX_CLIENT_FONT_H

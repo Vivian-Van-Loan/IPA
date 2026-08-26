@@ -4,6 +4,7 @@
 #include <citro2d.h>
 
 #include "images.h"
+#include "messages.h"
 
 struct matrix_client_t; //can't include the client due to circular refs
 
@@ -14,6 +15,9 @@ typedef ipa_image_t* ipa_image_t_p;
 
 #define TEMPLATE_TYPE pair$ipa_image_t_p$size_t$
 #include "../types/vector.h"
+
+#define TEMPLATE_TYPE ipa_message_t
+#include "../types/dequeue.h"
 
 #define TOP_HEIGHT 240
 #define TOP_WIDTH 400

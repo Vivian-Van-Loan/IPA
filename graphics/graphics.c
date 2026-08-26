@@ -229,45 +229,45 @@ void draw_bevel_box(struct ipa_graphics_state_t* graphics, int x, int y, int w, 
     for (size_t i = 0; i < (h - 6) / 2; i++) {
         int y1 = y + i * 2 + 3;
         int y2 = y + i * 2 + 4;
-        C2D_DrawLineFix(x + 4, y1 + 0.0625f, bars[y1 % 2], x + w - 4, y1 + 0.0625f, bars[y1 % 2], 1, base_depth + DEPTH_STEP_SMALL);
-        C2D_DrawLineFix(x + 4, y2 + 0.0625f, bars[y2 % 2], x + w - 4, y2+ 0.0625f, bars[y2 % 2], 1, base_depth + DEPTH_STEP_SMALL);
+        C2D_DrawLineFix(x + 4, y1, bars[y1 % 2], x + w - 4, y1, bars[y1 % 2], 1, base_depth + DEPTH_STEP_SMALL);
+        C2D_DrawLineFix(x + 4, y2, bars[y2 % 2], x + w - 4, y2, bars[y2 % 2], 1, base_depth + DEPTH_STEP_SMALL);
     }
 
-    C2D_DrawLineFix(x + 5, y + 0  + 0.0625f, border_out, x + w - 4, y + 0  + 0.0625f, border_out, 1, base_depth + DEPTH_STEP_BIG);
-    C2D_DrawLineFix(x + 5, y + 2  + 0.0625f, border_in, x + w - 5, y + 2  + 0.0625f, border_in, 2, base_depth + DEPTH_STEP_BIG + DEPTH_STEP_SMALL); //top
-    C2D_DrawLineFix(x + 5, y + 3  + 0.0625f, border_out, x + w - 4, y + 3  + 0.0625f, border_out, 1, base_depth + DEPTH_STEP_BIG);
+    C2D_DrawLineFix(x + 5, y + 0, border_out, x + w - 4, y + 0, border_out, 1, base_depth + DEPTH_STEP_BIG);
+    C2D_DrawLineFix(x + 5, y + 2, border_in, x + w - 5, y + 2, border_in, 2, base_depth + DEPTH_STEP_BIG + DEPTH_STEP_SMALL); //top
+    C2D_DrawLineFix(x + 5, y + 3, border_out, x + w - 4, y + 3, border_out, 1, base_depth + DEPTH_STEP_BIG);
 
-    C2D_DrawLineFix(x + 0, y + 5  + 0.0625f, border_out, x + 5, y + 0  + 0.0625f, border_out, 1, base_depth + DEPTH_STEP_BIG);
-    C2D_DrawLineFix(x + 0, y + 6  + 0.0625f, border_out, x + 6, y + 0  + 0.0625f, border_out, 1, base_depth + DEPTH_STEP_BIG);
-    C2D_DrawLineFix(x + 2, y + 6  + 0.0625f, border_in, x + 7, y + 1  + 0.0625f, border_in, 2, base_depth + DEPTH_STEP_BIG + DEPTH_STEP_SMALL); //top left
-    C2D_DrawLineFix(x + 3, y + 7  + 0.0625f, border_out, x + 7, y + 3  + 0.0625f, border_out, 1, base_depth + DEPTH_STEP_BIG);
+    C2D_DrawLineFix(x + 0, y + 5, border_out, x + 5, y + 0, border_out, 1, base_depth + DEPTH_STEP_BIG);
+    C2D_DrawLineFix(x + 0, y + 6, border_out, x + 6, y + 0, border_out, 1, base_depth + DEPTH_STEP_BIG);
+    C2D_DrawLineFix(x + 2, y + 6, border_in, x + 7, y + 1, border_in, 2, base_depth + DEPTH_STEP_BIG + DEPTH_STEP_SMALL); //top left
+    C2D_DrawLineFix(x + 3, y + 7, border_out, x + 7, y + 3, border_out, 1, base_depth + DEPTH_STEP_BIG);
 
-    C2D_DrawLineFix(x + w - 6, y + 0  + 0.0625f, border_out, x + w, y + 6  + 0.0625f, border_out, 1, base_depth + DEPTH_STEP_BIG);
-    C2D_DrawLineFix(x + w - 5, y + 0  + 0.0625f, border_out, x + w, y + 5  + 0.0625f, border_out, 1, base_depth + DEPTH_STEP_BIG);
-    C2D_DrawLineFix(x + w - 7, y + 1  + 0.0625f, border_in, x + w - 2, y + 6  + 0.0625f, border_in, 2, base_depth + DEPTH_STEP_BIG + DEPTH_STEP_SMALL); //top right
-    C2D_DrawLineFix(x + w - 7, y + 3  + 0.0625f, border_out, x + w - 3, y + 7  + 0.0625f, border_out, 1, base_depth + DEPTH_STEP_BIG);
+    C2D_DrawLineFix(x + w - 6, y + 0, border_out, x + w, y + 6, border_out, 1, base_depth + DEPTH_STEP_BIG);
+    C2D_DrawLineFix(x + w - 5, y + 0, border_out, x + w, y + 5, border_out, 1, base_depth + DEPTH_STEP_BIG);
+    C2D_DrawLineFix(x + w - 7, y + 1, border_in, x + w - 2, y + 6, border_in, 2, base_depth + DEPTH_STEP_BIG + DEPTH_STEP_SMALL); //top right
+    C2D_DrawLineFix(x + w - 7, y + 3, border_out, x + w - 3, y + 7, border_out, 1, base_depth + DEPTH_STEP_BIG);
 
-    C2D_DrawLineFix(x, y + 6  + 0.0625f, border_out, x, y + h - 6 + 0.0625f, border_out, 1, base_depth + DEPTH_STEP_BIG);
-    C2D_DrawLineFix(x + 2, y + 5  + 0.0625f, border_in, x + 2, y + h - 5 + 0.0625f, border_in, 2, base_depth + DEPTH_STEP_BIG + DEPTH_STEP_SMALL); //left side
-    C2D_DrawLineFix(x + 3, y + 6  + 0.0625f, border_out, x + 3, y + h - 6 + 0.0625f, border_out, 1, base_depth + DEPTH_STEP_BIG);
+    C2D_DrawLineFix(x, y + 6, border_out, x, y + h - 6, border_out, 1, base_depth + DEPTH_STEP_BIG);
+    C2D_DrawLineFix(x + 2, y + 5, border_in, x + 2, y + h - 5, border_in, 2, base_depth + DEPTH_STEP_BIG + DEPTH_STEP_SMALL); //left side
+    C2D_DrawLineFix(x + 3, y + 6, border_out, x + 3, y + h - 6, border_out, 1, base_depth + DEPTH_STEP_BIG);
 
-    C2D_DrawLineFix(x + w - 4, y + 6  + 0.0625f, border_out, x + w - 4, y + h - 6 + 0.0625f, border_out, 1, base_depth + DEPTH_STEP_BIG);
-    C2D_DrawLineFix(x + w - 2, y + 5  + 0.0625f, border_in, x + w - 2, y + h - 5 + 0.0625f, border_in, 2, base_depth + DEPTH_STEP_BIG + DEPTH_STEP_SMALL); //right side
-    C2D_DrawLineFix(x + w - 1, y + 6  + 0.0625f, border_out, x + w - 1, y + h - 6 + 0.0625f, border_out, 1, base_depth + DEPTH_STEP_BIG);
+    C2D_DrawLineFix(x + w - 4, y + 6, border_out, x + w - 4, y + h - 6, border_out, 1, base_depth + DEPTH_STEP_BIG);
+    C2D_DrawLineFix(x + w - 2, y + 5, border_in, x + w - 2, y + h - 5, border_in, 2, base_depth + DEPTH_STEP_BIG + DEPTH_STEP_SMALL); //right side
+    C2D_DrawLineFix(x + w - 1, y + 6, border_out, x + w - 1, y + h - 6, border_out, 1, base_depth + DEPTH_STEP_BIG);
 
-    C2D_DrawLineFix(x + 5, y + h - 4 + 0.0625f, border_out, x + w - 4, y + h - 4 + 0.0625f, border_out, 1, base_depth + DEPTH_STEP_BIG);
-    C2D_DrawLineFix(x + 5, y + h - 2 + 0.0625f, border_in, x + w - 5, y + h - 2 + 0.0625f, border_in, 2, base_depth + DEPTH_STEP_BIG + DEPTH_STEP_SMALL); //bottom
-    C2D_DrawLineFix(x + 5, y + h - 1 + 0.0625f, border_out, x + w - 4, y + h - 1 + 0.0625f, border_out, 1, base_depth + DEPTH_STEP_BIG);
+    C2D_DrawLineFix(x + 5, y + h - 4, border_out, x + w - 4, y + h - 4, border_out, 1, base_depth + DEPTH_STEP_BIG);
+    C2D_DrawLineFix(x + 5, y + h - 2, border_in, x + w - 5, y + h - 2, border_in, 2, base_depth + DEPTH_STEP_BIG + DEPTH_STEP_SMALL); //bottom
+    C2D_DrawLineFix(x + 5, y + h - 1, border_out, x + w - 4, y + h - 1, border_out, 1, base_depth + DEPTH_STEP_BIG);
 
-    C2D_DrawLineFix(x, y + h - 5 + 0.0625f, border_out, x + 5, y + h + 0.0625f, border_out, 1, base_depth + DEPTH_STEP_BIG);
-    C2D_DrawLineFix(x, y + h - 6 + 0.0625f, border_out, x + 6, y + h + 0.0625f, border_out, 1, base_depth + DEPTH_STEP_BIG);
-    C2D_DrawLineFix(x + 2, y + h - 6 + 0.0625f, border_in, x + 6, y + h - 2 + 0.0625f, border_in, 2, base_depth + DEPTH_STEP_BIG + DEPTH_STEP_SMALL); //bottom left
-    C2D_DrawLineFix(x + 3, y + h - 7 + 0.0625f, border_out, x + 7, y + h - 3 + 0.0625f, border_out, 1, base_depth + DEPTH_STEP_BIG);
+    C2D_DrawLineFix(x, y + h - 5, border_out, x + 5, y + h, border_out, 1, base_depth + DEPTH_STEP_BIG);
+    C2D_DrawLineFix(x, y + h - 6, border_out, x + 6, y + h, border_out, 1, base_depth + DEPTH_STEP_BIG);
+    C2D_DrawLineFix(x + 2, y + h - 6, border_in, x + 6, y + h - 2, border_in, 2, base_depth + DEPTH_STEP_BIG + DEPTH_STEP_SMALL); //bottom left
+    C2D_DrawLineFix(x + 3, y + h - 7, border_out, x + 7, y + h - 3, border_out, 1, base_depth + DEPTH_STEP_BIG);
 
-    C2D_DrawLineFix(x + w - 5, y + h + 0.0625f, border_out, x + w, y + h - 5 + 0.0625f, border_out, 1, base_depth + DEPTH_STEP_BIG);
-    C2D_DrawLineFix(x + w - 6, y + h + 0.0625f, border_out, x + w, y + h - 6 + 0.0625f, border_out, 1, base_depth + DEPTH_STEP_BIG);
-    C2D_DrawLineFix(x + w - 6, y + h - 2 + 0.0625f, border_in, x + w - 2, y + h - 6 + 0.0625f, border_in, 2, base_depth + DEPTH_STEP_BIG + DEPTH_STEP_SMALL); //bottom right
-    C2D_DrawLineFix(x + w - 7, y + h - 3 + 0.0625f, border_out, x + w - 3, y + h - 7 + 0.0625f, border_out, 1, base_depth + DEPTH_STEP_BIG);
+    C2D_DrawLineFix(x + w - 5, y + h, border_out, x + w, y + h - 5, border_out, 1, base_depth + DEPTH_STEP_BIG);
+    C2D_DrawLineFix(x + w - 6, y + h, border_out, x + w, y + h - 6, border_out, 1, base_depth + DEPTH_STEP_BIG);
+    C2D_DrawLineFix(x + w - 6, y + h - 2, border_in, x + w - 2, y + h - 6, border_in, 2, base_depth + DEPTH_STEP_BIG + DEPTH_STEP_SMALL); //bottom right
+    C2D_DrawLineFix(x + w - 7, y + h - 3, border_out, x + w - 3, y + h - 7, border_out, 1, base_depth + DEPTH_STEP_BIG);
 }
 
 void draw_main_menu_top(struct ipa_graphics_state_t* graphics) {
@@ -550,7 +550,7 @@ int draw_message_box_text(matrix_client_t* client, char const* name, char const*
         avatar_width = 0;
     }
 
-    ipa_string_t name_ipa = ipa_string_conv_crop(name, EM10_WIDTH); //honestly the allocation and crop shouldn't matter
+    ipa_string_t name_ipa = ipa_string_conv_crop(name, MAX_NAME_WIDTH, L'…'); //honestly the allocation and crop shouldn't matter
 
     int const v_text_offset = 7;
     int box_width = (avatar_left - x) + avatar_width + 1 + name_ipa.width; //actually the inner portion, not the outer
@@ -567,7 +567,7 @@ int draw_message_box_text(matrix_client_t* client, char const* name, char const*
     size_t len = strlen(text);
     while (text_y < BOTTOM_HEIGHT && (num_lines < max_lines || max_lines <= 0) && offset < len) {
         C2D_DrawRectSolidFix(text_x, text_y, 0, text_width, 14, back); //cover up an alpha-depth compositing problem
-        pair$int$size_t$ result = draw_string_max_width(text + offset, text_x, text_y, text_c, 0.05f, text_width);
+        pair$int$size_t$ result = draw_string_max_width(text + offset, text_x, text_y, text_c, 0.05f, text_width, true);
         offset += result.second;
         text_y += 18;
         text_x = x + w_text_pad;

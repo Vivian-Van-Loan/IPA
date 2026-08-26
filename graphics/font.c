@@ -23,7 +23,7 @@ C2D_SpriteSheet font_sheet;
 ipa_fontchar_t* font = nullptr;
 size_t font_size = 0;
 
-int EM10_WIDTH = 0;
+int MAX_NAME_WIDTH = 0;
 
 int init_font() {
     int res = -1;
@@ -86,7 +86,7 @@ int init_font() {
     fclose(info);
 
     res = 0;
-    EM10_WIDTH = get_string_width("mmmmmmmmmm");
+    MAX_NAME_WIDTH = get_string_width("mmmmmm");
     return res;
 
 error:
@@ -190,14 +190,17 @@ size_t crop_leading_whitespace(char const* str) {
     return offset;
 }
 
-pair$int$size_t$ draw_string_max_width(char const* str, int x, int y, u32 colour, float depth, int max_width) {
+pair$int$size_t$ draw_string_max_width(char const* str, int x, int y, u32 colour, float depth, int max_width, bool crop_lead_whitespace) {
     pair$int$size_t$ result = {0};
 
-    size_t whitespace_offset = crop_leading_whitespace(str);
-    if (whitespace_offset == (size_t)-1) {
-        return result;
+    size_t whitespace_offset = 0;
+    if (crop_lead_whitespace) {
+        whitespace_offset = crop_leading_whitespace(str);
+        if (whitespace_offset == (size_t)-1) {
+            return result;
+        }
+        str += whitespace_offset;
     }
-    str += whitespace_offset;
 
     result = string_find_max_width(str, max_width); //find amount of chars after whitespace
     draw_string_until(str, x, y, colour, depth, result.second);
@@ -278,14 +281,65 @@ ipa_string_t convert_string(char const* str) {
     return result;
 }
 
+ipa_string_t ipa_string_conv_crop(char const* str, int max_width, wchar_t crop_c) {
+    ipa_string_t result = convert_string(str);
+    ipa_string_crop(&result, max_width, crop_c);
+    return result;
+}
+
+pair$size_t$ipa_string_t$ ipa_string_conv_max_width(char const* str, int max_width, bool crop_lead_whitespace) {
+    pair$size_t$ipa_string_t$ result = {0};
+
+    size_t whitespace_offset = 0;
+    if (crop_lead_whitespace) {
+        whitespace_offset = crop_leading_whitespace(str);
+        if (whitespace_offset == (size_t)-1) {
+            result.first = whitespace_offset;
+            return result;
+        }
+        str += whitespace_offset;
+    }
+    result.first = whitespace_offset;
+
+    size_t len = strlen(str);
+    result.second.str = calloc(sizeof(wchar_t), len + 1);
+    mbstate_t conv = {0};
+    while (*str) {
+        wchar_t c;
+        size_t offset = mbrtowc(&c, str, len, &conv);
+        if (offset == (size_t)-1) {
+            efuncprintf("Encoding error\n");
+            free(result.second.str);
+            result.second.str = nullptr;
+            result.first = offset;
+            return result;
+        }
+
+        ipa_fontchar_t* fontchar = get_fontchar(c);
+        int full_width = get_char_full_width(fontchar->character);
+        if (result.second.width + full_width > max_width) {
+            goto loop_end;
+        }
+        result.second.str[result.first] = c;
+        result.second.width += full_width;
+        str += offset;
+        len -= offset;
+        result.first += offset;
+    }
+
+loop_end:
+    result.second.str = realloc(result.second.str, (wcslen(result.second.str) + 1) * sizeof(wchar_t));
+    return result;
+}
+
 void ipa_string_destroy(ipa_string_t* str) {
     free(str->str);
     str->str = nullptr;
     str->width = 0;
 }
 
-void ipa_string_crop(ipa_string_t* str, int max_width) {
-    wchar_t crop_c = L'…';
+void ipa_string_crop(ipa_string_t* str, int max_width, wchar_t crop_c) {
+    // wchar_t crop_c = L'…';
     wchar_t nul_c = L'\0';
 
     if (!str->str || str->width <= max_width) {
@@ -302,27 +356,25 @@ void ipa_string_crop(ipa_string_t* str, int max_width) {
         }
         i++;
     }
-    while (i > 0) {
-        wchar_t c = str->str[i];
-        width -= get_char_full_width(c);
-        str->str[i] = crop_c;
-        str->str[i + 1] = nul_c;
-        int crop_width = width + get_char_full_width(crop_c);
-        if (crop_width <= max_width) {
-            width = crop_width;
-            break;
+    if (crop_c != nul_c) {
+        while (i > 0) {
+            wchar_t c = str->str[i];
+            width -= get_char_full_width(c);
+            str->str[i] = crop_c;
+            str->str[i + 1] = nul_c;
+            int crop_width = width + get_char_full_width(crop_c);
+            if (crop_width <= max_width) {
+                width = crop_width;
+                break;
+            }
+            i--;
         }
-        i--;
+    } else {
+        str->str[i] = nul_c;
     }
 
     str->width = width;
     str->str = realloc(str->str, (wcslen(str->str) + 1) * sizeof(wchar_t));
-}
-
-ipa_string_t ipa_string_conv_crop(char const* str, int max_width) {
-    ipa_string_t result = convert_string(str);
-    ipa_string_crop(&result, max_width);
-    return result;
 }
 
 void draw_ipa_string(ipa_string_t str, int x, int y, u32 colour, float depth) {
