@@ -8,6 +8,7 @@
 #include "graphics.h"
 #include "stb_image_resize2.h"
 #include "../utils.h"
+#include "../matrix/matrix-utils.h"
 
 size_t bits_per_pixel(enum image_format format) {
     switch (format) {
@@ -66,6 +67,89 @@ ipa_image_t* lookup_image(hash_map$img_path$ipa_image_t$* map, char const* mxc_u
     char buf[sizeof(img_path)];
     form_image_path(buf, img_id + 1);
     return lookup_direct(map, buf);
+}
+
+pair$alloc_void$size_t$ download_image_data(matrix_client_t* client, char const* url, enum image_format* format_out) { //TODO: MOVE TO WORK QUEUE!
+    pair$alloc_void$size_t$ out = matrix_download_mxc(client, url);
+    if (!out.first) {
+        out.second = 0;
+        return out;
+    }
+    struct curl_header* header;
+    CURLHcode h = curl_easy_header(curl_handle, "Content-Type", 0, CURLH_HEADER, -1, &header);
+    if (h != CURLHE_OK) {
+        efuncprintf("Failed to get content type\n");
+        free(out.first);
+        out.first = nullptr;
+        out.second = 0;
+        return out;
+    }
+
+    *format_out = IMAGE_FORMAT_UNKNOWN;
+    if (strcasecmp(header->value, "image/png") == 0) {
+        *format_out = IMAGE_FORMAT_PNG;
+    } else if (strcasecmp(header->value, "image/jpeg") == 0) {
+        *format_out = IMAGE_FORMAT_JPG;
+    } else if (strcasecmp(header->value, "image/gif") == 0) {
+        *format_out = IMAGE_FORMAT_GIF;
+    } else if (strcasecmp(header->value, "image/webp") == 0) {
+        *format_out = IMAGE_FORMAT_WEBP;
+    } else if (strcasecmp(header->value, "image/bmp") == 0) {
+        *format_out = IMAGE_FORMAT_BMP;
+    }
+
+    return out;
+}
+
+ipa_image_t* get_avatar(matrix_client_t* client, char const* mxc_url, size_t width, size_t height) {
+    if (!mxc_url) {
+        return nullptr;
+    }
+
+    ipa_image_t* image = lookup_avatar(&client->graphics_state->image_map, mxc_url, width, height);
+    if (!image) {
+        img_path path;
+        ipa_image_t temp;
+        form_avatar_path(path, strrchr(mxc_url, '/') + 1, width, height);
+        FILE* f = fopen(path, "rb"); //let's go disk cache baby
+        if (f) {
+            off_t size = get_file_size_fd(fileno(f));
+            unsigned char* data = malloc(size);
+            // if (fread(data, 1, size, f) != size) {
+            //     eprintf("Failed to read avatar image\n");
+            //     free(data);
+            //     fclose(f);
+            //     return nullptr;
+            // }
+            fread(data, 1, size, f);
+            fclose(f);
+            temp = load_etc_image(data, width, height, IMAGE_FORMAT_ETC1A4);
+            free(data);
+            image = hash_map$img_path$ipa_image_t$_add(&client->graphics_state->image_map, path, temp);
+            if (!image || !image->data) {
+                destroy_image(&temp);
+                return nullptr;
+            }
+            return image;
+        }
+
+        enum image_format format;
+        pair$alloc_void$size_t$ data = download_image_data(client, mxc_url, &format);
+        if (!data.first) {
+            return nullptr;
+        }
+        temp = load_resize_compress_save(data.first, data.second, format, width, height, path);
+        free(data.first);
+        if (!temp.data) {
+            return nullptr;
+        }
+        image = hash_map$img_path$ipa_image_t$_add(&client->graphics_state->image_map, path, temp);
+        if (!image || !image->data) {
+            destroy_image(&temp);
+            return nullptr;
+        }
+    }
+    return image;
 }
 
 ipa_image_t load_image(unsigned char const* input, size_t len, enum image_format format) {

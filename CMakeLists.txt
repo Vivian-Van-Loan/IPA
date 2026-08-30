@@ -58,6 +58,12 @@ set(MATRIXC_SRCS
 		graphics/messages.h
         work_queue.c
 		work_queue.h
+		graphics/menus/main_menu.c
+		graphics/menus/main_menu.h
+		graphics/menus/general.c
+		graphics/menus/general.h
+		graphics/menus/select_menu.c
+		graphics/menus/select_menu.h
 )
 
 add_executable(${PROJECT_NAME} ${MATRIXC_SRCS})

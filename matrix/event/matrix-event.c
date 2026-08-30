@@ -126,3 +126,36 @@ void matrix_event_destroy(matrix_event_t* event) {
     free(event->unsigned_data.replaces_state);
     free(event->unsigned_data.transaction_id);
 }
+
+// matrix_event_t matrix_event_clone(matrix_event_t* event) {
+//     matrix_event_t new = {0};
+//     new.type.first = event->type.first;
+//     new.type.second = strdup_null(event->type.second);
+//     new.id = strdup_null(event->id);
+//     new.origin_server_ts = event->origin_server_ts;
+//     new.sender = strdup_null(event->sender);
+//     new.room_id = strdup_null(event->room_id);
+//     new.state_key = strdup_null(event->state_key);
+//
+//     new.unsigned_data.age = event->unsigned_data.age;
+//     new.unsigned_data.membership = strdup_null(event->unsigned_data.membership);
+//     new.unsigned_data.replaces_state = strdup_null(event->unsigned_data.replaces_state);
+//     new.unsigned_data.replaced = event->unsigned_data.replaced;
+//     new.unsigned_data.transaction_id = strdup_null(event->unsigned_data.transaction_id);
+//
+//     new.relates_to.rel_type = event->relates_to.rel_type;
+//     new.relates_to.event_id = strdup_null(event->relates_to.event_id);
+//
+//     matrix_event_type_t type = event->type.first;
+//     if (event_is_room(type)) {
+//         new.room = matrix_event_room_clone(type, &event->room);
+//     } else if (event_is_ephemeral(type)) {
+//         efuncprintf("matrix_event_clone on ephemeral before ready!\n");
+//     } else if (event->type.first == EVENT_MSG_MESSAGE) {
+//         new.message = matrix_message_clone(&event->message);
+//     } else {
+//         efuncprintf("matrix_event_clone on unknown/unready event type!\n");
+//     }
+//
+//     return new;
+// }

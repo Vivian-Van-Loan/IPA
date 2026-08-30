@@ -65,128 +65,124 @@ bool needs_refresh(json_t* json) {
     return val;
 }
 
-char* matrix_get_string(matrix_login_t* login, char const* url) {
-    bool retry = false;
-    while (true) {
-        pair$alloc_str$long$ ret = http_get_string(url);
-        if (ret.second == 200) {
-            return ret.first;
-        }
-        if (ret.second != 401 || retry) {
-            efuncprintf("Failed to download page [%s], response code: %ld\n", url, ret.second);
-            free(ret.first);
-            return nullptr;
-        }
-        if (!needs_refresh(json_loads(ret.first, 0, nullptr))) {
-            free(ret.first);
-            return nullptr;
-        }
-        matrix_login_from_save(login, true);
-        retry = true;
-    }
+struct ipa_process_args_t* ipa_process_args_new(matrix_login_t* login, bool retry, ipa_callback_t next_callback, void* next_args, size_t next_args_size) {
+    struct ipa_process_args_t* args = malloc(sizeof(struct ipa_process_args_t));
+    args->login = login;
+    args->retry = retry;
+    args->next_callback = next_callback;
+    args->next_args = next_args;
+    args->next_args_size = next_args_size;
+    return args;
 }
 
-pair$alloc_void$size_t$ matrix_get_data(matrix_login_t* login, char const* url) {
-    pair$alloc_void$size_t$ ret = {nullptr, 0};
-
-    bool retry = false;
-    while (true) {
-        pair$alloc_void$long$ pair = http_get_data(url);
-        curl_off_t len;
-        CURLcode c = curl_easy_getinfo(curl_handle, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &len);
-        if (c != CURLE_OK) {
-            efuncprintf("Failed to get content length\n");
-            free(pair.first);
-            return ret;
+triple$bool$alloc_void$size_t$ matrix_process_data(ipa_queue_entry_t entry) {
+    triple$bool$alloc_void$size_t$ ret = {false, nullptr, 0};
+    struct ipa_process_args_t args = *(struct ipa_process_args_t*)entry.args;
+    bool retry = args.retry;
+    if (entry.status == 200) {
+        ret.second = entry.result;
+        ret.third = entry.result_size;
+        if (args.next_callback) {
+            ret.first = false;
+            void* data = malloc(entry.result_size);
+            memcpy(data, entry.result, entry.result_size);
+            ipa_queue_entry_t next = make_function_queue_entry(args.next_callback, data, entry.result_size, args.next_args, args.next_args_size);
+            add_to_work_queue_with_id(next, entry.id);
+        } else {
+            ret.first = true;
         }
-        if (pair.second == 200) {
-            ret.first = pair.first;
-            ret.second = len;
-            return ret;
-        }
-        if (pair.second != 401 || retry) {
-            efuncprintf("Failed to download page [%s], response code: %ld\n", url, pair.second);
-            free(pair.first);
-            return ret;
-        }
-        if (!needs_refresh(json_loads(pair.first, 0, nullptr))) {
-            free(pair.first);
-            return ret;
-        }
-        matrix_login_from_save(login, true);
-        retry = true;
-    }
-}
-
-int matrix_get_file(matrix_login_t* login, char const* url, char const* path) {
-    bool retry = false;
-    while (true) {
-        long res = http_get_file(url, path);
-        if (res == 200) {
-            return 0;
-        }
-        if (res != 401 || retry) {
-            return res;
-        }
-        if (!needs_refresh(json_load_file(path, 0, nullptr))) {
-            unlink(path);
-            return -1;
-        }
-        matrix_login_from_save(login, true);
-        retry = true;
-    }
-}
-
-char* matrix_post_json_string(matrix_login_t* login, char const* url, char const* json) {
-    bool retry = false;
-    while (true) {
-        pair$alloc_str$long$ ret = post_json_string(url, json);
-        if (ret.second == 200) {
-            return ret.first;
-        }
-        if (ret.second != 401 || retry) {
-            efuncprintf("Failed to download page [%s], response code: %ld\n", url, ret.second);
-            free(ret.first);
-            return nullptr;
-        }
-        if (!needs_refresh(json_loads(ret.first, 0, nullptr))) {
-            free(ret.first);
-            return nullptr;
-        }
-        matrix_login_from_save(login, true);
-        retry = true;
-    }
-}
-
-int matrix_post_json_file(matrix_login_t* login, char const* url, char const* json, char const* path) {
-    bool retry = false;
-    while (true) {
-        long res = post_json_file(url, json, path);
-        if (res == 200) {
-            return 0;
-        }
-        if (res != 401 || retry) {
-            return res;
-        }
-        if (!needs_refresh(json_load_file(path, 0, nullptr))) {
-            unlink(path);
-            return -1;
-        }
-            matrix_login_from_save(login, true);
-            retry = true;
-    }
-}
-
-pair$alloc_void$size_t$ matrix_download_mxc(matrix_client_t* client, char const* mxc_url) {
-    pair$alloc_void$size_t$ ret = {nullptr, 0};
-
-    char buf[URL_BUFFER_SIZE];
-    char const* stripped = strstr(mxc_url, "mxc://");
-    if (!stripped) {
         return ret;
     }
+    if (entry.status != 401 || retry) {
+        efuncprintf("Failed to download page [%s], response code: %ld\n", entry.url, entry.status);
+        ret.first = true;
+        ret.second = nullptr;
+        ret.third = 0;
+        return ret;
+    }
+    if (!needs_refresh(json_loads(entry.result, 0, nullptr))) {
+        ret.first = true;
+        ret.second = nullptr;
+        ret.third = 0;
+        return ret;
+    }
+
+    struct ipa_process_args_t* new_args = malloc(sizeof(args));
+    *new_args = args;
+    new_args->retry = true;
+    ipa_queue_entry_t new_entry = make_download_str_queue_entry_callback(entry.url, entry.func, new_args, sizeof(args));
+    prepend_to_work_queue(new_entry, entry.id);
+
+    matrix_login_from_save(args.login, true);
+
+    return ret;
+}
+
+triple$bool$alloc_void$size_t$ matrix_process_file(ipa_queue_entry_t entry) {
+    triple$bool$alloc_void$size_t$ ret = {false, nullptr, 0};
+    struct ipa_process_args_t args = *(struct ipa_process_args_t*)entry.args;
+    bool retry = args.retry;
+    if (entry.status == 200) {
+        ret.second = malloc(entry.result_size);
+        memcpy(ret.second, entry.result, entry.result_size);
+        ret.third = entry.result_size;
+        if (args.next_callback) {
+            ret.first = false;
+            void* data = malloc(entry.result_size);
+            memcpy(data, entry.result, entry.result_size);
+            ipa_queue_entry_t next = make_function_queue_entry(args.next_callback, data, entry.result_size, args.next_args, args.next_args_size);
+            add_to_work_queue_with_id(next, entry.id);
+        } else {
+            ret.first = true;
+        }
+        return ret;
+    }
+    if (entry.status != 401 || retry) {
+        return ret;
+    }
+    if (!needs_refresh(json_load_file(entry.result, 0, nullptr))) {
+        unlink(entry.result);
+        return ret;
+    }
+
+    struct ipa_process_args_t* new_args = malloc(sizeof(args));
+    *new_args = args;
+    new_args->retry = true;
+    ipa_queue_entry_t new_entry = make_download_str_queue_entry_callback(entry.url, entry.func, new_args, sizeof(args));
+    prepend_to_work_queue(new_entry, entry.id);
+
+    matrix_login_from_save(args.login, true);
+
+    return ret;
+}
+
+triple$bool$alloc_void$size_t$ matrix_process_post_data(ipa_queue_entry_t entry) {
+    return matrix_process_data(entry); //atm it's the same
+}
+
+triple$bool$alloc_void$size_t$ matrix_process_post_file(ipa_queue_entry_t entry) {
+    return matrix_process_file(entry); //ditto on it being the same now
+}
+
+int matrix_get_mxc_url(matrix_client_t* client, char const* mxc_url, char out_url[URL_BUFFER_SIZE]) {
+    char const* stripped = strstr(mxc_url, "mxc://");
+    if (!stripped) {
+        return -1;
+    }
     stripped += sizeof("mxc://") - 1;
-    snprintf(buf, sizeof(buf), "%s/_matrix/client/v1/media/download/%s", client->login.homeserver_resolved, stripped);
+    pthread_mutex_lock(&client->login.mutex);
+    snprintf(out_url, sizeof(char[URL_BUFFER_SIZE]), "%s/_matrix/client/v1/media/download/%s", client->login.homeserver_resolved, stripped);
+    pthread_mutex_unlock(&client->login.mutex);
+    return 0;
+}
+
+triple$bool$alloc_void$size_t$ matrix_download_mxc(matrix_client_t* client, char const* mxc_url) {
+    triple$bool$alloc_void$size_t$ ret = {true, nullptr, 0};
+
+    char buf[URL_BUFFER_SIZE];
+    if (matrix_get_mxc_url(client, mxc_url, buf)) {
+        return ret;
+    }
     ret = matrix_get_data(&client->login, buf);
     return ret;
 }

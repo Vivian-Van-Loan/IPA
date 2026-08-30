@@ -306,18 +306,18 @@ long http_get_file(char const* url, char const* path) {
     return get_file(url, path);
 }
 
-pair$alloc_str$long$ post_json_string(char const* url, char const* json) {
-    curl_easy_setopt(curl_handle, CURLOPT_POSTFIELDS, json);
+pair$alloc_str$long$ http_post_get_string(char const* url, char const* post_text) {
+    curl_easy_setopt(curl_handle, CURLOPT_POSTFIELDS, post_text);
     return download_to_string(url);
 }
 
-pair$alloc_void$long$ post_json_data(char const* url, char const* json) {
-    curl_easy_setopt(curl_handle, CURLOPT_POSTFIELDS, json);
+pair$alloc_void$long$ http_post_get_data(char const* url, char const* post_text) {
+    curl_easy_setopt(curl_handle, CURLOPT_POSTFIELDS, post_text);
     return download_to_data(url);
 }
 
-long post_json_file(char const* url, char const* json, char const* path) {
-    curl_easy_setopt(curl_handle, CURLOPT_POSTFIELDS, json);
+long http_post_get_file(char const* url, char const* post_text, char const* path) {
+    curl_easy_setopt(curl_handle, CURLOPT_POSTFIELDS, post_text);
     return get_file(url, path);
 }
 
@@ -338,4 +338,11 @@ off_t get_file_size_fd(int fd) {
         size = st.st_size;
     }
     return size;
+}
+
+char* strdup_null(char const* str) {
+    if (!str) {
+        return nullptr;
+    }
+    return strdup(str);
 }

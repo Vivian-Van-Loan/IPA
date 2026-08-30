@@ -1,7 +1,10 @@
 #ifndef MATRIX_CLIENT_LOGIN_H
 #define MATRIX_CLIENT_LOGIN_H
 
+#include <pthread.h>
+
 typedef struct matrix_login_t {
+    pthread_mutex_t mutex;
     bool logged_in;
     char* user_id;
     char* homeserver;
@@ -11,9 +14,11 @@ typedef struct matrix_login_t {
     char* refresh_token;
 } matrix_login_t;
 
+matrix_login_t make_login();
+
+//notably bad idea to call these from outside the work queue
 void matrix_login_from_save(matrix_login_t* login, bool force_refresh);
-void matrix_login_refresh(matrix_login_t* login, char const* homeserver_base, char const* user, char const* refresh_token);
 void matrix_login_pass(matrix_login_t* login, char const* homeserver_base, char const* user, char const* pass, char const* device_id_str);
-void matrix_login_destroy(matrix_login_t* login);
+void matrix_login_destroy(matrix_login_t* login); //requires locked mutex, destroying it, no need to unlock
 
 #endif //MATRIX_CLIENT_LOGIN_H

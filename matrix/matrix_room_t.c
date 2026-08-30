@@ -94,42 +94,39 @@ void matrix_room_build(matrix_room_t* room, json_t* events) {
     }
 }
 
-void matrix_room_add_events(matrix_room_t* room, json_t* events, bool reverse) {
-    if (!json_is_array(events)) {
-        efuncprintf("provided with non-array event json!");
-        return;
-    }
-
-    size_t index_i;
-    json_t* value_inner;
-    json_array_foreach(events, index_i, value_inner) {
+//will destroy and remove unneeded events
+//otherwise steals data, so while the list can be freed, DO NOT use a callback to destroy elements
+//as we now have their data. I don't want to write a clone function for events
+void matrix_room_add_events(matrix_room_t* room, dequeue$matrix_event_t$* events, bool reverse) {
+    size_t i = 0;
+    while (i < events->count) {
+        matrix_event_t* event = &events->data[i];
         bool destroy_event = false;
         bool add_event = true;
-        matrix_event_t event = matrix_make_event(value_inner);
-        if (event.type.first == EVENT_ROOM_MEMBER) {
-            if (!matrix_room_add_user(room, &event)) {
+        if (event->type.first == EVENT_ROOM_MEMBER) {
+            if (!matrix_room_add_user(room, event)) {
                 destroy_event = true;
             }
             add_event = false;
-        } else if (event.type.first == EVENT_ROOM_TOPIC) {
-            room->topic = strdup(event.room.topic.topic);
-            room->topic_ts = event.origin_server_ts;
+        } else if (event->type.first == EVENT_ROOM_TOPIC) {
+            room->topic = strdup(event->room.topic.topic);
+            room->topic_ts = event->origin_server_ts;
             destroy_event = true;
-        } else if (event.type.first == EVENT_ROOM_NAME) {
-            room->name = strdup(event.room.name.name);
-            room->name_ts = event.origin_server_ts;
+        } else if (event->type.first == EVENT_ROOM_NAME) {
+            room->name = strdup(event->room.name.name);
+            room->name_ts = event->origin_server_ts;
             destroy_event = true;
-        } else if (event.type.first == EVENT_ROOM_AVATAR) {
-            room->avatar_url = strdup(event.room.avatar.url);
-            room->avatar_ts = event.origin_server_ts;
+        } else if (event->type.first == EVENT_ROOM_AVATAR) {
+            room->avatar_url = strdup(event->room.avatar.url);
+            room->avatar_ts = event->origin_server_ts;
             destroy_event = true;
-        } else if (event.type.first == EVENT_ROOM_REDACTION) {
-            matrix_room_redaction_t* redaction = &event.room.redaction;
-            for (size_t i = 0; i < room->events.count; i++) {
-                matrix_event_t* e = &room->events.data[i];
+        } else if (event->type.first == EVENT_ROOM_REDACTION) {
+            matrix_room_redaction_t* redaction = &event->room.redaction;
+            for (size_t j = 0; j < room->events.count; j++) {
+                matrix_event_t* e = &room->events.data[j];
                 if (strcmp(e->id, redaction->redacts) == 0) {
                     matrix_event_destroy(e);
-                    dequeue$matrix_event_t$_remove(&room->events, i);
+                    dequeue$matrix_event_t$_remove(&room->events, j);
                     break;
                 }
             }
@@ -137,17 +134,20 @@ void matrix_room_add_events(matrix_room_t* room, json_t* events, bool reverse) {
         }
 
         if (destroy_event) {
-            matrix_event_destroy(&event);
+            matrix_event_destroy(event);
+            dequeue$matrix_event_t$_remove(events, i);
+            continue;
         } else if (add_event) {
             if (reverse) {
-                dequeue$matrix_event_t$_push(&room->events, event);
+                dequeue$matrix_event_t$_push(&room->events, *event);
             } else {
-                dequeue$matrix_event_t$_push_back(&room->events, event);
+                dequeue$matrix_event_t$_push_back(&room->events, *event);
             }
         }
+        i++;
     }
 
-    size_t i = 0;
+    i = 0;
     while (i < room->events.count) {
         //todo: this system is untested because its hard to find a replaces event that isn't covered by earlier cases
         // and edits use their own entire m.replace message type and system for some reason

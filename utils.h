@@ -66,11 +66,13 @@ size_t write_response(void* ptr, size_t size, size_t nmemb, void* stream); //use
 pair$alloc_str$long$ http_get_string(char const* url);
 pair$alloc_void$long$ http_get_data(char const* url);
 long http_get_file(char const* url, char const* path);
-pair$alloc_str$long$ post_json_string(char const* url, char const* json);
-pair$alloc_void$long$ post_json_data(char const* url, char const* json);
-long post_json_file(char const* url, char const* json, char const* path);
+pair$alloc_str$long$ http_post_get_string(char const* url, char const* post_text);
+pair$alloc_void$long$ http_post_get_data(char const* url, char const* post_text);
+long http_post_get_file(char const* url, char const* post_text, char const* path);
 
 off_t get_file_size(char const* path);
 off_t get_file_size_fd(int fd);
+
+char* strdup_null(char const* str);
 
 #endif //MATRIX_CLIENT_UTILS_H

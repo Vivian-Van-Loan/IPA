@@ -9,7 +9,13 @@
 
 #define REFRESH_SAVE SAVE_DIR"access.txt"
 
-void matrix_login_dump_refresh(matrix_login_t const* login) {
+matrix_login_t make_login() {
+    matrix_login_t login = {0};
+    login.mutex = PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP;
+    return login;
+}
+
+void matrix_login_dump_refresh(matrix_login_t const* login) { //requires locked mutex
     if (!login->refresh_token || !login->user_id || !login->access_token) {
         efuncprintf("Missing login requirements\n");
         return;
@@ -35,7 +41,7 @@ int curl_add_auth(char const* auth_token) {
     return res;
 }
 
-int set_check_access_token(matrix_login_t* login, char const* homeserver_base, char const* user, char const* token) {
+int set_check_access_token(matrix_login_t* login, char const* homeserver_base, char const* user, char const* token) { //requires locked mutex
     login->logged_in = false;
     login->access_token = strdup(token);
     int res = curl_add_auth(login->access_token);
@@ -80,76 +86,7 @@ int set_check_access_token(matrix_login_t* login, char const* homeserver_base, c
     return 0;
 }
 
-void matrix_login_from_save(matrix_login_t* login, bool force_refresh) {
-    FILE* f = fopen(REFRESH_SAVE, "r");
-    if (!f) {
-        efuncprintf("Failed to open access.txt\n");
-        return;
-    }
-    char* lineptr = nullptr;
-    size_t line = 0;
-    size_t n;
-    ssize_t line_len;
-    char* homeserver = nullptr;
-    char* user = nullptr;
-    char* refresh_token = nullptr;
-    char* access_token = nullptr;
-    char* device_id = nullptr;
-    bool failed = false;
-    while ((line_len = __getline(&lineptr, &n, f)) != -1) {
-        if (line_len == 0 || lineptr[0] == '\n') {
-            failed = true;
-            break;
-        }
-        lineptr[line_len - 1] = '\0';
-        if (line == 0) {
-            user = strdup(lineptr);
-            char* colon = strchr(lineptr, ':');
-            if (colon) {
-                *colon = '\0';
-                colon++;
-                homeserver = strdup(colon);
-            }
-        } else if (line == 1) {
-            access_token = strdup(lineptr);
-        } else if (line == 2) {
-            refresh_token = strdup(lineptr);
-        } else if (line == 3) {
-            device_id = strdup(lineptr);
-        }
-        line++;
-    }
-    if (line <= 3) {
-        failed = true;
-    }
-    free(lineptr);
-    fclose(f);
-    if (!failed) {
-        login->device_id = strdup(device_id);
-        if (force_refresh) {
-            matrix_login_refresh(login, homeserver, user, refresh_token);
-        } else {
-            if (set_check_access_token(login, homeserver, user, access_token) == 0) {
-                // login->access_token = strdup(access_token);
-                login->refresh_token = strdup(refresh_token);
-                login->homeserver = strdup(homeserver);
-                // login->user_id = strdup(user);
-                login->logged_in = true;
-            } else {
-                matrix_login_refresh(login, homeserver, user, refresh_token);
-            }
-        }
-    } else {
-        login->logged_in = false;
-    }
-    free(homeserver);
-    free(user);
-    free(refresh_token);
-    free(access_token);
-    free(device_id);
-}
-
-void matrix_login_refresh(matrix_login_t* login, char const* homeserver_base, char const* user, char const* refresh_token) {
+void matrix_login_refresh(matrix_login_t* login, char const* homeserver_base, char const* user, char const* refresh_token) { //requires locked mutex
     login->logged_in = false;
     login->homeserver_resolved = matrix_resolve_homeserver(homeserver_base);
     if (!login->homeserver_resolved) {
@@ -162,7 +99,7 @@ void matrix_login_refresh(matrix_login_t* login, char const* homeserver_base, ch
     json_auto_t* root = json_object();
     json_object_set_new(root, "refresh_token", json_string(refresh_token));
     char* json_str = json_dumps(root, JSON_COMPACT);
-    pair$alloc_str$long$ pair = post_json_string(buf, json_str);
+    pair$alloc_str$long$ pair = http_post_get_string(buf, json_str);
     if (pair.second != 200 || !pair.first) {
         efuncprintf("Failed to refresh access token\n");
         matrix_login_destroy(login);
@@ -193,7 +130,83 @@ void matrix_login_refresh(matrix_login_t* login, char const* homeserver_base, ch
     login->logged_in = true;
 }
 
+struct login_info {
+    char* homeserver;
+    char* user;
+    char* access_token;
+    char* refresh_token;
+    char* device_id;
+};
+
+void matrix_login_from_save(matrix_login_t* login, bool force_refresh) {
+    FILE* f = fopen(REFRESH_SAVE, "r");
+    if (!f) {
+        efuncprintf("Failed to open access.txt\n");
+        return;
+    }
+    char* lineptr = nullptr;
+    size_t line = 0;
+    size_t n;
+    ssize_t line_len;
+    struct login_info info = {0};
+    bool failed = false;
+    while ((line_len = __getline(&lineptr, &n, f)) != -1) {
+        if (line_len == 0 || lineptr[0] == '\n') {
+            failed = true;
+            break;
+        }
+        lineptr[line_len - 1] = '\0';
+        if (line == 0) {
+            info.user = strdup(lineptr);
+            char* colon = strchr(lineptr, ':');
+            if (colon) {
+                *colon = '\0';
+                colon++;
+                info.homeserver = strdup(colon);
+            }
+        } else if (line == 1) {
+            info.access_token = strdup(lineptr);
+        } else if (line == 2) {
+            info.refresh_token = strdup(lineptr);
+        } else if (line == 3) {
+            info.device_id = strdup(lineptr);
+        }
+        line++;
+    }
+    if (line <= 3) {
+        failed = true;
+    }
+    free(lineptr);
+    fclose(f);
+    pthread_mutex_lock(&login->mutex);
+    if (!failed) {
+        login->device_id = strdup(info.device_id);
+        if (force_refresh) {
+            matrix_login_refresh(login, info.homeserver, info.user, info.refresh_token);
+        } else {
+            if (set_check_access_token(login, info.homeserver, info.user, info.access_token) == 0) { //todo: switch this over to the work queue callback system
+                // login->access_token = strdup(info.access_token);
+                login->refresh_token = strdup(info.refresh_token);
+                login->homeserver = strdup(info.homeserver);
+                // login->user_id = strdup(info.user);
+                login->logged_in = true;
+            } else {
+                matrix_login_refresh(login, info.homeserver, info.user, info.refresh_token);
+            }
+        }
+    } else {
+        login->logged_in = false;
+    }
+    pthread_mutex_unlock(&login->mutex);
+    free(info.homeserver);
+    free(info.user);
+    free(info.refresh_token);
+    free(info.access_token);
+    free(info.device_id);
+}
+
 void matrix_login_pass(matrix_login_t* login, char const* homeserver_base, char const* user, char const* pass, char const* device_id_str) {
+    pthread_mutex_lock(&login->mutex);
     login->logged_in = false;
     json_t* root = nullptr;
     json_t* response = nullptr;
@@ -221,7 +234,7 @@ void matrix_login_pass(matrix_login_t* login, char const* homeserver_base, char 
 
     char buf[URL_BUFFER_SIZE];
     snprintf(buf, sizeof(buf), "%s/_matrix/client/v3/login", login->homeserver_resolved);
-    pair$alloc_str$long$ pair = post_json_string(buf, json_str);
+    pair$alloc_str$long$ pair = http_post_get_string(buf, json_str);
     response_str = pair.first;
     // printf("Response: %s\n", response_str);
     if (pair.second != 200 || !response_str) {
@@ -277,10 +290,14 @@ exit:
     if (!login->logged_in) {
         matrix_login_destroy(login);
     }
+    pthread_mutex_unlock(&login->mutex);
 }
 
 //DOES NOT logout, just frees and clears
+//requires locked mutex
 void matrix_login_destroy(matrix_login_t* login) {
+    pthread_mutex_unlock(&login->mutex);
+    pthread_mutex_destroy(&login->mutex);
     free(login->user_id);
     free(login->homeserver);
     free(login->homeserver_resolved);

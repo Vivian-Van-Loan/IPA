@@ -6,6 +6,7 @@
 
 #include "../types/general_types.h"
 #include "../utils.h"
+#include "../matrix/matrix-client.h"
 
 enum image_format {
     IMAGE_FORMAT_UNKNOWN,
@@ -49,6 +50,7 @@ void form_image_path(img_path dest, char const* image_id); //using img path is a
 
 ipa_image_t* lookup_avatar(hash_map$img_path$ipa_image_t$* map, char const* mxc_url, size_t width, size_t height);
 ipa_image_t* lookup_image(hash_map$img_path$ipa_image_t$* map, char const* mxc_url);
+ipa_image_t* get_avatar(matrix_client_t* client, char const* mxc_url, size_t width, size_t height);
 
 ipa_image_t load_image(unsigned char const* input, size_t len, enum image_format format);
 ipa_image_t load_etc_image(unsigned char const* input, size_t width, size_t height, enum image_format format);

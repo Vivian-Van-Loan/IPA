@@ -5,8 +5,9 @@
 
 #include "images.h"
 #include "messages.h"
+#include "../matrix/matrix-client.h"
 
-struct matrix_client_t; //can't include the client due to circular refs
+// struct matrix_client_t; //can't include the client due to circular refs
 
 typedef ipa_image_t* ipa_image_t_p;
 #define TEMPLATE_TYPE_K ipa_image_t_p
@@ -18,6 +19,18 @@ typedef ipa_image_t* ipa_image_t_p;
 
 #define TEMPLATE_TYPE ipa_message_t
 #include "../types/dequeue.h"
+
+struct ipa_graphics_state_t {
+    ptrdiff_t time_on_menu;
+    matrix_menu_t menu;
+    ptrdiff_t selection;
+    ptrdiff_t selection_num;
+    ptrdiff_t scroll_pos;
+    ptrdiff_t scroll_to_pos;
+    ptrdiff_t anim_start_time;
+    hash_map$img_path$ipa_image_t$ image_map;
+    vector$pair$ipa_image_t_p$size_t$$ vram_images;
+};
 
 #define TOP_HEIGHT 240
 #define TOP_WIDTH 400
@@ -39,6 +52,26 @@ constexpr u32 LIGHT_GREY = C2D_Color32c(0xBA, 0xBA, 0xBA, 0xFF);
 constexpr u32 SUPER_LIGHT_GREY = C2D_Color32c(0xEB, 0xEB, 0xEB, 0xFF);
 constexpr u32 SILVER = C2D_Color32c(0xD3, 0xCB, 0xC3, 0xFF);
 constexpr u32 ORANGE = C2D_Color32c(0xFB, 0x69, 0x00, 0xFF);
+
+constexpr float FADE_TOP = 0.25f;
+constexpr float FADE_BOTTOM = 1;
+constexpr int SPEED = 3;
+constexpr int BIG_AVATAR_SIZE = 32;
+constexpr int SMALL_AVATAR_SIZE = 16;
+constexpr float DEPTH_STEP_SMALL = 1.0f / 65536;
+constexpr float DEPTH_STEP_BIG = 1.0f / 128;
+
+extern C3D_RenderTarget* top;
+extern C3D_RenderTarget* bottom;
+extern C2D_SpriteSheet main_sheet;
+extern C2D_Sprite main_sprites[4];
+extern C2D_SpriteSheet gradient_sheet;
+extern C2D_Sprite gradient_sprites[2];
+
+// extern C2D_ImageTint overlay_tint;
+extern u32 overlay_colour;
+extern u32 overlay_colour_dark;
+extern u32 overlay_colour_light;
 
 #define COORD_OFFSET 0.0625f
 

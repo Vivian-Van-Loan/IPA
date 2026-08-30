@@ -30,13 +30,21 @@ typedef struct matrix_client_t {
     matrix_room_t* current_room;
 } matrix_client_t;
 
-int matrix_client_sync_account_data(matrix_client_t* client);
-int matrix_client_sync_directs(matrix_client_t* client);
-int matrix_client_sync_dump(matrix_client_t* client);
+ssize_t queue_matrix_client_sync_account_data(matrix_client_t* client);
+ssize_t queue_matrix_client_sync_directs(matrix_client_t* client);
+ssize_t queue_matrix_client_sync_dump(matrix_client_t* client);
 
-int matrix_client_load_current_room(matrix_client_t* client, bool reverse);
+typedef struct matrix_room_info_t {
+    dequeue$matrix_event_t$ events;
+    bool reverse;
+    char const* end;
+} matrix_room_info_t;
 
-int matrix_client_set_and_sync_room(matrix_client_t* client, matrix_room_t* room);
+ssize_t queue_matrix_client_load_room(matrix_client_t* client, char const* room_id, bool reverse);
+
+// int matrix_client_load_current_room(matrix_client_t* client, bool reverse);
+
+// int matrix_client_set_and_sync_room(matrix_client_t* client, matrix_room_t* room);
 
 matrix_client_t make_client();
 void destroy_client(matrix_client_t* client);

@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
     }
 
     matrix_client_t client = make_client();
-    matrix_login_from_save(&client.login, false);
+    matrix_login_from_save(&client.login, false); //TODO: MOVE TO WORK QUEUE!
     if (!client.login.logged_in) {
         eprintf("Refreshing login failed, attempting password login\n");
         matrix_login_pass(&client.login, "toasterwaffle.win", "alice", "STRIPPED_OUT", nullptr);

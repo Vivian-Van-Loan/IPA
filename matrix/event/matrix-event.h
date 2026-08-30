@@ -61,4 +61,6 @@ typedef struct matrix_event_t {
 matrix_event_t matrix_make_event(json_t* json);
 void matrix_event_destroy(matrix_event_t* event);
 
+// matrix_event_t matrix_event_clone(matrix_event_t* event);
+
 #endif //MATRIX_CLIENT_MATRIX_EVENT_H
