@@ -305,3 +305,17 @@ void matrix_login_destroy(matrix_login_t* login) {
     free(login->access_token);
     memset(login, 0, sizeof(*login));
 }
+
+triple$bool$alloc_void$size_t$ matrix_login_from_save_wrapper(ipa_queue_entry_t entry) {
+    triple$bool$alloc_void$size_t$ ret = {true};
+    struct matrix_login_wrapper_t* args = entry.args;
+    matrix_login_from_save(args->login, false);
+    return ret;
+}
+
+ssize_t queue_matrix_login_from_save(matrix_login_t* login, bool force_refresh) {
+    struct matrix_login_wrapper_t* args = malloc(sizeof(struct matrix_login_wrapper_t));
+    args->login = login;
+    args->force_refresh = force_refresh;
+    return add_function_to_work_queue(matrix_login_from_save_wrapper, nullptr, 0, args, sizeof(*args));
+}

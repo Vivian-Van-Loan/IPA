@@ -36,21 +36,27 @@ typedef struct ipa_image_t {
     size_t id;
 } ipa_image_t;
 
-#define TEMPLATE_TYPE_K img_path //todo: figure out how this is going to fully work
+#define TEMPLATE_TYPE_K img_path
 #define TEMPLATE_TYPE_K_IS_ARRAY
 #define TEMPLATE_TYPE_V ipa_image_t
 // #define TEMPLATE_HASH_FUNC auto_hash
 #define TEMPLATE_EQUAL_FUNC(lhs, rhs) (strncmp(lhs, rhs, sizeof(img_path)) == 0)
 #include "../types/hash_map.h"
 
+typedef struct ipa_image_info_t {
+    ipa_image_t image;
+    img_path path;
+} ipa_image_info_t;
+
 size_t bits_per_pixel(enum image_format format);
 
 void form_avatar_path(img_path dest, char const* image_id, size_t width, size_t height);
 void form_image_path(img_path dest, char const* image_id); //using img path is a bit overkill as it's longer than needed, but whatever it's minor
 
-ipa_image_t* lookup_avatar(hash_map$img_path$ipa_image_t$* map, char const* mxc_url, size_t width, size_t height);
 ipa_image_t* lookup_image(hash_map$img_path$ipa_image_t$* map, char const* mxc_url);
-ipa_image_t* get_avatar(matrix_client_t* client, char const* mxc_url, size_t width, size_t height);
+ipa_image_t* get_avatar(hash_map$img_path$ipa_image_t$* map, char const* mxc_url, size_t width, size_t height);
+ssize_t queue_image_download(matrix_client_t* client, char const* mxc_url);
+ssize_t queue_avatar_download(matrix_client_t* client, char const* mxc_url, size_t width, size_t height);
 
 ipa_image_t load_image(unsigned char const* input, size_t len, enum image_format format);
 ipa_image_t load_etc_image(unsigned char const* input, size_t width, size_t height, enum image_format format);
@@ -58,6 +64,7 @@ void destroy_image(ipa_image_t* image);
 int convert_to_etc(ipa_image_t* image); //acts on the provided image, only altering it if successful
 int resize_compress(ipa_image_t* image, size_t width, size_t height); //acts on the provided image, only altering it if successful
 ipa_image_t load_resize_compress_save(unsigned char const* input, size_t len, enum image_format format, size_t width, size_t height, img_path const path);
+ipa_image_t load_compress_image(unsigned char const* input, size_t len, enum image_format format);
 
 void image_load_vram(ipa_image_t* image);
 void image_unload_vram(ipa_image_t* image);

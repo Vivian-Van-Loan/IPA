@@ -35,8 +35,11 @@ int init_work_queue() {
     if (work_queue_thread_running) {
         return 0;
     }
-    if (!pthread_mutex_lock(&work_queue_mutex))
+    if (pthread_mutex_lock(&work_queue_mutex)) {
+        efuncprintf("Mutex unlock returned error");
+        perror("");
         return -1;
+    }
     work_queue = vector$ipa_queue_entry_t$_new();
     finished_queue = vector$ipa_queue_entry_t$_new();
     pthread_mutex_unlock(&work_queue_mutex);
@@ -47,7 +50,7 @@ int destroy_work_queue() {
     if (work_queue_thread_running) {
         return -1;
     }
-    if (!pthread_mutex_lock(&work_queue_mutex))
+    if (pthread_mutex_lock(&work_queue_mutex))
         return -1;
 
     vector$ipa_queue_entry_t$_free_callback(&work_queue, destroy_queue_entry);
@@ -150,7 +153,7 @@ ipa_queue_entry_t make_post_download_file_queue_entry_callback(char const* url, 
 }
 
 ssize_t prepend_to_work_queue(ipa_queue_entry_t entry, ssize_t forced_id) {
-    if (!pthread_mutex_lock(&work_queue_mutex))
+    if (pthread_mutex_lock(&work_queue_mutex))
         return -1;
     if (forced_id != -1) {
         entry.id = forced_id;
@@ -168,7 +171,7 @@ ssize_t prepend_to_work_queue(ipa_queue_entry_t entry, ssize_t forced_id) {
 }
 
 ssize_t add_to_work_queue(ipa_queue_entry_t entry) {
-    if (!pthread_mutex_lock(&work_queue_mutex))
+    if (pthread_mutex_lock(&work_queue_mutex))
         return -1;
     entry.id = next_id++;
     vector$ipa_queue_entry_t$_push_back(&work_queue, entry);
@@ -184,13 +187,16 @@ ssize_t add_to_work_queue_with_id(ipa_queue_entry_t entry, ssize_t forced_id) {
     if (forced_id == -1) {
         return add_to_work_queue(entry);
     }
-    if (!pthread_mutex_lock(&work_queue_mutex))
+    if (pthread_mutex_lock(&work_queue_mutex))
         return -1;
     entry.id = forced_id;
     vector$ipa_queue_entry_t$_push_back(&work_queue, entry);
     if (!work_queue_thread_running) {
         work_queue_thread_running = true;
-        pthread_create(&work_queue_thread, nullptr, work_queue_loop, nullptr);
+        if (pthread_create(&work_queue_thread, nullptr, work_queue_loop, nullptr)) {
+            efuncprintf("pthread_create returned error");
+            perror("");
+        }
     }
     pthread_mutex_unlock(&work_queue_mutex);
     return entry.id;
@@ -256,7 +262,7 @@ ssize_t add_post_download_file_to_work_queue_callback(char const* url, char cons
 }
 
 size_t get_work_queue_size() {
-    if (!pthread_mutex_lock(&work_queue_mutex))
+    if (pthread_mutex_lock(&work_queue_mutex))
         return -1;
     size_t size = work_queue.count;
     pthread_mutex_unlock(&work_queue_mutex);
@@ -264,7 +270,7 @@ size_t get_work_queue_size() {
 }
 
 size_t get_finished_queue_size() {
-    if (!pthread_mutex_lock(&work_queue_mutex))
+    if (pthread_mutex_lock(&work_queue_mutex))
         return -1;
     size_t size = finished_queue.count;
     pthread_mutex_unlock(&work_queue_mutex);
@@ -273,7 +279,7 @@ size_t get_finished_queue_size() {
 
 optional$ipa_queue_entry_t$ get_from_finished_queue() {
     optional$ipa_queue_entry_t$ result = {0};
-    if (!pthread_mutex_lock(&work_queue_mutex))
+    if (pthread_mutex_lock(&work_queue_mutex))
         return result;
     if (finished_queue.count == 0) {
         pthread_mutex_unlock(&work_queue_mutex);
@@ -288,7 +294,7 @@ optional$ipa_queue_entry_t$ get_from_finished_queue() {
 
 void* work_queue_loop(void* arg) {
     while (work_queue_thread_running) {
-        if (!pthread_mutex_lock(&work_queue_mutex)) {
+        if (pthread_mutex_lock(&work_queue_mutex)) {
             efuncprintf("Mutex unlock returned error!\n");
             break;
         }
@@ -376,7 +382,7 @@ void* work_queue_loop(void* arg) {
         }
 
         if (add_to_finished_queue) {
-            if (!pthread_mutex_lock(&work_queue_mutex)) {
+            if (pthread_mutex_lock(&work_queue_mutex)) {
                 efuncprintf("Mutex unlock returned error!\n");
                 break;
             }

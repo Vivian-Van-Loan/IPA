@@ -31,7 +31,7 @@ int get_char_full_width(wchar_t c);
 int get_string_width(char const* str);
 int get_string_width_itr(char const* str, size_t* offset, int* width, mbstate_t* conv);
 
-ipa_string_t convert_string(char const* str);
+ipa_string_t ipa_string_convert(char const* str);
 ipa_string_t ipa_string_conv_crop(char const* str, int max_width, wchar_t crop_c);
 pair$size_t$ipa_string_t$ ipa_string_conv_max_width(char const* str, int max_width, bool crop_lead_whitespace);
 

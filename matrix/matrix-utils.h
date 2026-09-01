@@ -29,7 +29,7 @@ triple$bool$alloc_void$size_t$ matrix_process_file(ipa_queue_entry_t entry);
 triple$bool$alloc_void$size_t$ matrix_process_post_data(ipa_queue_entry_t entry);
 triple$bool$alloc_void$size_t$ matrix_process_post_file(ipa_queue_entry_t entry);
 
-int matrix_get_mxc_url(matrix_client_t* client, char const* mxc_url, char out_url[URL_BUFFER_SIZE]);
+int matrix_get_mxc_url(matrix_login_t* login, char const* mxc_url, char out_url[URL_BUFFER_SIZE]);
 // pair$alloc_void$size_t$ matrix_download_mxc(matrix_client_t* client, char const* mxc_url);
 
 #endif //MATRIX_CLIENT_MATRIX_UTILS_H

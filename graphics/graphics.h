@@ -20,6 +20,25 @@ typedef ipa_image_t* ipa_image_t_p;
 #define TEMPLATE_TYPE ipa_message_t
 #include "../types/dequeue.h"
 
+enum ipa_graphics_queue_type_t {
+    IPA_QUEUE_NONE,
+    IPA_QUEUE_LOGIN,
+    IPA_QUEUE_IMAGE,
+    IPA_QUEUE_AVATAR,
+    IPA_QUEUE_SYNC_MAIN,
+    IPA_QUEUE_SYNC_DIRECTS,
+    IPA_QUEUE_LOAD_ROOM,
+    IPA_QUEUE_FUNCTION,
+};
+
+typedef struct ipa_graphics_queue_t {
+    enum ipa_graphics_queue_type_t type;
+    ssize_t id;
+} ipa_graphics_queue_t;
+
+#define TEMPLATE_TYPE ipa_graphics_queue_t
+#include "../types/vector.h"
+
 struct ipa_graphics_state_t {
     ptrdiff_t time_on_menu;
     matrix_menu_t menu;
@@ -30,6 +49,7 @@ struct ipa_graphics_state_t {
     ptrdiff_t anim_start_time;
     hash_map$img_path$ipa_image_t$ image_map;
     vector$pair$ipa_image_t_p$size_t$$ vram_images;
+    vector$ipa_graphics_queue_t$ queue;
 };
 
 #define TOP_HEIGHT 240

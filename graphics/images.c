@@ -69,44 +69,70 @@ ipa_image_t* lookup_image(hash_map$img_path$ipa_image_t$* map, char const* mxc_u
     return lookup_direct(map, buf);
 }
 
-pair$alloc_void$size_t$ download_image_data(matrix_client_t* client, char const* url, enum image_format* format_out) { //TODO: MOVE TO WORK QUEUE!
-    pair$alloc_void$size_t$ out = matrix_download_mxc(client, url);
-    if (!out.first) {
-        out.second = 0;
-        return out;
-    }
+enum image_format get_image_format() {
+    enum image_format format = IMAGE_FORMAT_UNKNOWN;
     struct curl_header* header;
+    //turns out this is reused by the curl handle, so have fun if the task thread ever has more than one thread
     CURLHcode h = curl_easy_header(curl_handle, "Content-Type", 0, CURLH_HEADER, -1, &header);
     if (h != CURLHE_OK) {
         efuncprintf("Failed to get content type\n");
-        free(out.first);
-        out.first = nullptr;
-        out.second = 0;
-        return out;
+        return format;
     }
 
-    *format_out = IMAGE_FORMAT_UNKNOWN;
     if (strcasecmp(header->value, "image/png") == 0) {
-        *format_out = IMAGE_FORMAT_PNG;
+        format = IMAGE_FORMAT_PNG;
     } else if (strcasecmp(header->value, "image/jpeg") == 0) {
-        *format_out = IMAGE_FORMAT_JPG;
+        format = IMAGE_FORMAT_JPG;
     } else if (strcasecmp(header->value, "image/gif") == 0) {
-        *format_out = IMAGE_FORMAT_GIF;
+        format = IMAGE_FORMAT_GIF;
     } else if (strcasecmp(header->value, "image/webp") == 0) {
-        *format_out = IMAGE_FORMAT_WEBP;
+        format = IMAGE_FORMAT_WEBP;
     } else if (strcasecmp(header->value, "image/bmp") == 0) {
-        *format_out = IMAGE_FORMAT_BMP;
+        format = IMAGE_FORMAT_BMP;
     }
 
-    return out;
+    return format;
 }
 
-ipa_image_t* get_avatar(matrix_client_t* client, char const* mxc_url, size_t width, size_t height) {
+struct image_process_args_t {
+    img_path path;
+    size_t width;
+    size_t height;
+};
+
+triple$bool$alloc_void$size_t$ process_image_data(ipa_queue_entry_t entry) {
+    triple$bool$alloc_void$size_t$ ret = {true};
+
+    struct image_process_args_t* args = entry.args;
+
+    if (!entry.result) {
+        return ret;
+    }
+    enum image_format format = get_image_format();
+    ipa_image_t temp;
+    if (args->width != (size_t)-1) {
+        temp = load_resize_compress_save(entry.result, entry.result_size, format, args->width, args->height, args->path);
+    } else {
+        temp = load_compress_image(entry.result, entry.result_size, format);
+    }
+    if (!temp.data) {
+        return ret;
+    }
+    ret.third = sizeof(ipa_image_info_t);
+    ret.second = malloc(ret.third);
+    ipa_image_info_t* info = ret.second;
+    info->image = temp;
+    memcpy(info->path, args->path, sizeof(args->path));
+
+    return ret;
+}
+
+ipa_image_t* get_avatar(hash_map$img_path$ipa_image_t$* map, char const* mxc_url, size_t width, size_t height) {
     if (!mxc_url) {
         return nullptr;
     }
 
-    ipa_image_t* image = lookup_avatar(&client->graphics_state->image_map, mxc_url, width, height);
+    ipa_image_t* image = lookup_avatar(map, mxc_url, width, height);
     if (!image) {
         img_path path;
         ipa_image_t temp;
@@ -125,28 +151,12 @@ ipa_image_t* get_avatar(matrix_client_t* client, char const* mxc_url, size_t wid
             fclose(f);
             temp = load_etc_image(data, width, height, IMAGE_FORMAT_ETC1A4);
             free(data);
-            image = hash_map$img_path$ipa_image_t$_add(&client->graphics_state->image_map, path, temp);
+            image = hash_map$img_path$ipa_image_t$_add(map, path, temp);
             if (!image || !image->data) {
                 destroy_image(&temp);
                 return nullptr;
             }
             return image;
-        }
-
-        enum image_format format;
-        pair$alloc_void$size_t$ data = download_image_data(client, mxc_url, &format);
-        if (!data.first) {
-            return nullptr;
-        }
-        temp = load_resize_compress_save(data.first, data.second, format, width, height, path);
-        free(data.first);
-        if (!temp.data) {
-            return nullptr;
-        }
-        image = hash_map$img_path$ipa_image_t$_add(&client->graphics_state->image_map, path, temp);
-        if (!image || !image->data) {
-            destroy_image(&temp);
-            return nullptr;
         }
     }
     return image;
@@ -205,6 +215,45 @@ ipa_image_t load_image(unsigned char const* input, size_t len, enum image_format
             break;
     }
     return image;
+}
+
+ssize_t queue_image_download(matrix_client_t* client, char const* mxc_url) {
+    if (!mxc_url) {
+        return -1;
+    }
+    char const* img_id = strrchr(mxc_url, '/');
+    if (!img_id) {
+        return -1;
+    }
+
+    struct image_process_args_t* next_args = malloc(sizeof(struct image_process_args_t));
+    form_image_path(next_args->path, img_id + 1);
+    next_args->width = -1;
+    next_args->height = -1;
+    struct ipa_process_args_t* args = ipa_process_args_new(&client->login, false, process_image_data, next_args, sizeof(*next_args));
+
+    char buf[URL_BUFFER_SIZE];
+    matrix_get_mxc_url(&client->login, mxc_url, buf);
+    return add_download_data_to_work_queue_callback(buf, matrix_process_data, &args, sizeof(*args));
+}
+
+ssize_t queue_avatar_download(matrix_client_t* client, char const* mxc_url, size_t width, size_t height) {
+    if (!mxc_url) {
+        return -1;
+    }
+    char const* img_id = strrchr(mxc_url, '/');
+    if (!img_id) {
+        return -1;
+    }
+    struct image_process_args_t* next_args = malloc(sizeof(struct image_process_args_t));
+    form_avatar_path(next_args->path, img_id + 1, width, height);
+    next_args->width = width;
+    next_args->height = height;
+    struct ipa_process_args_t* args = ipa_process_args_new(&client->login, false, process_image_data, next_args, sizeof(*next_args));
+
+    char buf[URL_BUFFER_SIZE];
+    matrix_get_mxc_url(&client->login, mxc_url, buf);
+    return add_download_data_to_work_queue_callback(buf, matrix_process_data, &args, sizeof(*args));
 }
 
 ipa_image_t load_etc_image(unsigned char const* input, size_t width, size_t height, enum image_format format) {
@@ -286,6 +335,11 @@ void encode_etc1_block(size_t block_x, size_t block_y, size_t width, size_t heig
 }
 
 int convert_to_etc(ipa_image_t* image) {
+    if (!image || !image->data) {
+        efuncprintf("No image\n");
+        return -1;
+    }
+
     size_t width = next_power_of_two(image->width);
     size_t height = next_power_of_two(image->height);
 
@@ -371,6 +425,20 @@ ipa_image_t load_resize_compress_save(unsigned char const* input, size_t len, en
         // memset(image.path, 0, sizeof(image.path));
     }
 
+    return image;
+}
+
+ipa_image_t load_compress_image(unsigned char const* input, size_t len, enum image_format format) {
+    ipa_image_t image = load_image(input, len, format);
+    if (!image.data) {
+        efuncprintf("Failed to load image\n");
+        return image;
+    }
+    convert_to_etc(&image);
+    if (!image.data) {
+        efuncprintf("Failed to convert image\n");
+        return image;
+    }
     return image;
 }
 

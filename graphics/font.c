@@ -254,7 +254,7 @@ int get_string_width_itr(char const* str, size_t* offset, int* width, mbstate_t*
     return 0;
 }
 
-ipa_string_t convert_string(char const* str) {
+ipa_string_t ipa_string_convert(char const* str) {
     ipa_string_t result = {0};
     if (!str) {
         return result;
@@ -282,7 +282,7 @@ ipa_string_t convert_string(char const* str) {
 }
 
 ipa_string_t ipa_string_conv_crop(char const* str, int max_width, wchar_t crop_c) {
-    ipa_string_t result = convert_string(str);
+    ipa_string_t result = ipa_string_convert(str);
     ipa_string_crop(&result, max_width, crop_c);
     return result;
 }

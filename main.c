@@ -25,31 +25,39 @@ int main(int argc, char** argv) {
 
     int res = init_general();
     if (res) {
+        eprintf("Failed to init general\n");
         return res;
     }
     res = init_graphics();
     if (res) {
+        eprintf("Failed to init graphics\n");
         return res;
     }
     res = init_curl();
     if (res) {
+        eprintf("Failed to init curl\n");
+        return res;
+    }
+    res = init_work_queue();
+    if (res) {
+        eprintf("Failed to init work queue\n");
         return res;
     }
 
     matrix_client_t client = make_client();
-    matrix_login_from_save(&client.login, false); //TODO: MOVE TO WORK QUEUE!
-    if (!client.login.logged_in) {
-        eprintf("Refreshing login failed, attempting password login\n");
-        matrix_login_pass(&client.login, "toasterwaffle.win", "alice", "STRIPPED_OUT", nullptr);
-    }
-    matrix_client_sync_account_data(&client);
-    matrix_client_sync_directs(&client);
-
-    matrix_client_sync_dump(&client);
-    printf("Logged in and synced, good luck reading it\n");
-
-    matrix_client_set_and_sync_room(&client, &client.rooms.data[0]);
-    client.menu = MENU_CHAT;
+    // matrix_login_from_save(&client.login, false); //TODO: MOVE TO WORK QUEUE!
+    // if (!client.login.logged_in) {
+    //     eprintf("Refreshing login failed, attempting password login\n");
+    //     matrix_login_pass(&client.login, "toasterwaffle.win", "alice", "STRIPPED_OUT", nullptr);
+    // }
+    // matrix_client_sync_account_data(&client);
+    // matrix_client_sync_directs(&client);
+    //
+    // matrix_client_sync_dump(&client);
+    // printf("Logged in and synced, good luck reading it\n");
+    //
+    // matrix_client_set_and_sync_room(&client, &client.rooms.data[0]);
+    // client.menu = MENU_CHAT;
 
     while (aptMainLoop()) {
         // hidScanInput();

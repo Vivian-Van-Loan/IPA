@@ -164,25 +164,14 @@ triple$bool$alloc_void$size_t$ matrix_process_post_file(ipa_queue_entry_t entry)
     return matrix_process_file(entry); //ditto on it being the same now
 }
 
-int matrix_get_mxc_url(matrix_client_t* client, char const* mxc_url, char out_url[URL_BUFFER_SIZE]) {
+int matrix_get_mxc_url(matrix_login_t* login, char const* mxc_url, char out_url[URL_BUFFER_SIZE]) {
     char const* stripped = strstr(mxc_url, "mxc://");
     if (!stripped) {
         return -1;
     }
     stripped += sizeof("mxc://") - 1;
-    pthread_mutex_lock(&client->login.mutex);
-    snprintf(out_url, sizeof(char[URL_BUFFER_SIZE]), "%s/_matrix/client/v1/media/download/%s", client->login.homeserver_resolved, stripped);
-    pthread_mutex_unlock(&client->login.mutex);
+    pthread_mutex_lock(&login->mutex);
+    snprintf(out_url, sizeof(char[URL_BUFFER_SIZE]), "%s/_matrix/client/v1/media/download/%s", login->homeserver_resolved, stripped);
+    pthread_mutex_unlock(&login->mutex);
     return 0;
-}
-
-triple$bool$alloc_void$size_t$ matrix_download_mxc(matrix_client_t* client, char const* mxc_url) {
-    triple$bool$alloc_void$size_t$ ret = {true, nullptr, 0};
-
-    char buf[URL_BUFFER_SIZE];
-    if (matrix_get_mxc_url(client, mxc_url, buf)) {
-        return ret;
-    }
-    ret = matrix_get_data(&client->login, buf);
-    return ret;
 }

@@ -128,11 +128,12 @@ void draw_main_menu_bottom(struct ipa_graphics_state_t* graphics) {
     //     draw_main_menu_button(i, 64, i * 32 + max(BOTTOM_HEIGHT - graphics->time_on_menu * 3, 56));
     //     // draw_main_menu_button(i, 64, i * 32 + 56);
     // }
-    draw_main_menu_button(main_sprites + 0, 64, 0 * 32 + max(BOTTOM_HEIGHT - (graphics->time_on_menu - SPEED * 0) * SPEED, 56), "Direct Messages"); //the 4 main menu icons are first in the tex array
-    draw_main_menu_button(main_sprites + 1, 64, 1 * 32 + max(BOTTOM_HEIGHT - (graphics->time_on_menu - SPEED * 1) * SPEED, 56), "Spaces");
-    draw_main_menu_button(main_sprites + 2, 64, 2 * 32 + max(BOTTOM_HEIGHT - (graphics->time_on_menu - SPEED * 2) * SPEED, 56), "Rooms");
-    draw_main_menu_button(main_sprites + 3, 64, 3 * 32 + max(BOTTOM_HEIGHT - (graphics->time_on_menu - SPEED * 3) * SPEED, 56), "Settings");
-    draw_main_menu_select(59, graphics->selection * 32 + max(BOTTOM_HEIGHT - 5 - (graphics->time_on_menu - SPEED * graphics->selection) * SPEED, 51));
+    ptrdiff_t anim_time = graphics->time_on_menu - graphics->anim_start_time;
+    draw_main_menu_button(main_sprites + 0, 64, 0 * 32 + max(BOTTOM_HEIGHT - (anim_time - SPEED * 0) * SPEED, 56), "Direct Messages"); //the 4 main menu icons are first in the tex array
+    draw_main_menu_button(main_sprites + 1, 64, 1 * 32 + max(BOTTOM_HEIGHT - (anim_time - SPEED * 1) * SPEED, 56), "Spaces");
+    draw_main_menu_button(main_sprites + 2, 64, 2 * 32 + max(BOTTOM_HEIGHT - (anim_time - SPEED * 2) * SPEED, 56), "Rooms");
+    draw_main_menu_button(main_sprites + 3, 64, 3 * 32 + max(BOTTOM_HEIGHT - (anim_time - SPEED * 3) * SPEED, 56), "Settings");
+    draw_main_menu_select(59, graphics->selection * 32 + max(BOTTOM_HEIGHT - 5 - (anim_time - SPEED * graphics->selection) * SPEED, 51));
 }
 
 void draw_main_menu(struct ipa_graphics_state_t* graphics) {

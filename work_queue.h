@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <unistd.h>
 
-#include "matrix/login.h"
+// #include "matrix/login.h"
 #include "types/general_types.h"
 
 typedef enum ipa_queue_entry_type_t {
@@ -40,8 +40,10 @@ typedef struct ipa_queue_entry_t {
     size_t result_size;
 } ipa_queue_entry_t;
 
+struct matrix_login_t;
+
 struct ipa_process_args_t {
-    matrix_login_t* login;
+    struct matrix_login_t* login;
     bool retry;
     ipa_callback_t next_callback;
     void* next_args;
@@ -54,7 +56,7 @@ struct ipa_process_args_t {
 #define TEMPLATE_TYPE ipa_queue_entry_t
 #include "types/optional.h"
 
-struct ipa_process_args_t* ipa_process_args_new(matrix_login_t* login, bool retry, ipa_callback_t next_callback, void* next_args, size_t next_args_size);
+struct ipa_process_args_t* ipa_process_args_new(struct matrix_login_t* login, bool retry, ipa_callback_t next_callback, void* next_args, size_t next_args_size);
 
 void destroy_queue_entry(ipa_queue_entry_t* entry);
 
