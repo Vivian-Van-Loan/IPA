@@ -20,6 +20,7 @@ enum image_format {
     IMAGE_FORMAT_ETC1A4,
 };
 
+typedef char img_url[URL_BUFFER_SIZE];
 typedef char img_path[sizeof(AVATAR_CACHE_DIR) + sizeof("NNNxNNN/") - 1 + NAME_MAX]; //Cache dir, image size, filename, - 1 to get rid of one NUL term
 typedef struct ipa_image_t {
     unsigned char* data;
@@ -33,7 +34,7 @@ typedef struct ipa_image_t {
     int delay;
     enum image_format format;
     // img_path path;
-    size_t id;
+    ssize_t id; //used for queue tracking when an image is being loaded
 } ipa_image_t;
 
 #define TEMPLATE_TYPE_K img_path
@@ -54,9 +55,15 @@ void form_avatar_path(img_path dest, char const* image_id, size_t width, size_t 
 void form_image_path(img_path dest, char const* image_id); //using img path is a bit overkill as it's longer than needed, but whatever it's minor
 
 ipa_image_t* lookup_image(hash_map$img_path$ipa_image_t$* map, char const* mxc_url);
+ipa_image_t* lookup_avatar(hash_map$img_path$ipa_image_t$* map, char const* mxc_url, size_t width, size_t height);
+// void add_image_to_map(hash_map$img_path$ipa_image_t$* map, char const* mxc_url, ipa_image_t image);
+// void add_avatar_to_map(hash_map$img_path$ipa_image_t$* map, char const* mxc_url, ipa_image_t image, size_t width, size_t height);
+
 ipa_image_t* get_avatar(hash_map$img_path$ipa_image_t$* map, char const* mxc_url, size_t width, size_t height);
-ssize_t queue_image_download(matrix_client_t* client, char const* mxc_url);
-ssize_t queue_avatar_download(matrix_client_t* client, char const* mxc_url, size_t width, size_t height);
+// ssize_t queue_image_download(matrix_client_t* client, char const* mxc_url);
+// ssize_t queue_avatar_download(matrix_client_t* client, char const* mxc_url, size_t width, size_t height);
+// ssize_t queue_image_get(matrix_client_t* client, char const* mxc_url);
+ssize_t queue_avatar_get(matrix_client_t* client, char const* mxc_url, size_t width, size_t height);
 
 ipa_image_t load_image(unsigned char const* input, size_t len, enum image_format format);
 ipa_image_t load_etc_image(unsigned char const* input, size_t width, size_t height, enum image_format format);

@@ -27,6 +27,8 @@ enum ipa_graphics_queue_type_t {
     IPA_QUEUE_AVATAR,
     IPA_QUEUE_SYNC_MAIN,
     IPA_QUEUE_SYNC_DIRECTS,
+    IPA_QUEUE_SYNC_SPACES,
+    IPA_QUEUE_SYNC_ROOMS,
     IPA_QUEUE_LOAD_ROOM,
     IPA_QUEUE_FUNCTION,
 };
@@ -34,6 +36,8 @@ enum ipa_graphics_queue_type_t {
 typedef struct ipa_graphics_queue_t {
     enum ipa_graphics_queue_type_t type;
     ssize_t id;
+    bool finished;
+    ipa_queue_entry_t finished_entry;
 } ipa_graphics_queue_t;
 
 #define TEMPLATE_TYPE ipa_graphics_queue_t
@@ -44,6 +48,7 @@ struct ipa_graphics_state_t {
     matrix_menu_t menu;
     ptrdiff_t selection;
     ptrdiff_t selection_num;
+    bool selected;
     ptrdiff_t scroll_pos;
     ptrdiff_t scroll_to_pos;
     ptrdiff_t anim_start_time;
@@ -72,6 +77,7 @@ constexpr u32 LIGHT_GREY = C2D_Color32c(0xBA, 0xBA, 0xBA, 0xFF);
 constexpr u32 SUPER_LIGHT_GREY = C2D_Color32c(0xEB, 0xEB, 0xEB, 0xFF);
 constexpr u32 SILVER = C2D_Color32c(0xD3, 0xCB, 0xC3, 0xFF);
 constexpr u32 ORANGE = C2D_Color32c(0xFB, 0x69, 0x00, 0xFF);
+constexpr u32 YELLOW = C2D_Color32c(0xFB, 0xD3, 0x00, 0xFF);
 
 constexpr float FADE_TOP = 0.25f;
 constexpr float FADE_BOTTOM = 1;
@@ -81,12 +87,24 @@ constexpr int SMALL_AVATAR_SIZE = 16;
 constexpr float DEPTH_STEP_SMALL = 1.0f / 65536;
 constexpr float DEPTH_STEP_BIG = 1.0f / 128;
 
+#define MENU_SPRITE_OFFSET 0
+#define MENU_SPRITE_LEN 4
+#define SIGNAL_SPRITE_OFFSET (MENU_SPRITE_OFFSET + MENU_SPRITE_LEN)
+#define SIGNAL_SPRITE_LEN 4
+#define BATTERY_SPRITE_OFFSET (SIGNAL_SPRITE_OFFSET + SIGNAL_SPRITE_LEN)
+#define BATTERY_SPRITE_LEN 7
+#define LOAD_SPRITE_OFFSET (BATTERY_SPRITE_OFFSET + BATTERY_SPRITE_LEN)
+#define LOAD_SPRITE_LEN 8
+#define NUM_SPRITES (LOAD_SPRITE_OFFSET + LOAD_SPRITE_LEN)
+
 extern C3D_RenderTarget* top;
 extern C3D_RenderTarget* bottom;
 extern C2D_SpriteSheet main_sheet;
-extern C2D_Sprite main_sprites[4];
+extern C2D_Sprite main_sprites[NUM_SPRITES];
 extern C2D_SpriteSheet gradient_sheet;
 extern C2D_Sprite gradient_sprites[2];
+
+#define LOAD_SPRITE_WIDTH (main_sprites[LOAD_SPRITE_OFFSET].image.subtex->width)
 
 // extern C2D_ImageTint overlay_tint;
 extern u32 overlay_colour;
@@ -103,5 +121,10 @@ u32 C2D_Color_Overlay(u32 base, u32 overlay);
 int init_graphics();
 
 void draw_and_input(struct matrix_client_t* client);
+
+void add_to_graphics_queue(vector$ipa_graphics_queue_t$* queue, enum ipa_graphics_queue_type_t type, ssize_t id);
+ipa_graphics_queue_t* find_in_graphics_queue_id(vector$ipa_graphics_queue_t$* queue, ssize_t id);
+ipa_graphics_queue_t* find_in_graphics_queue_type(vector$ipa_graphics_queue_t$* queue, enum ipa_graphics_queue_type_t type);
+void remove_from_graphics_queue(vector$ipa_graphics_queue_t$* queue, ssize_t id);
 
 #endif //MATRIX_CLIENT_GRAPHICS_H

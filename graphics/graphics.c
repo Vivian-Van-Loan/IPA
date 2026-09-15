@@ -13,7 +13,7 @@
 C3D_RenderTarget* top;
 C3D_RenderTarget* bottom;
 C2D_SpriteSheet main_sheet;
-C2D_Sprite main_sprites[4];
+C2D_Sprite main_sprites[NUM_SPRITES];
 C2D_SpriteSheet gradient_sheet;
 C2D_Sprite gradient_sprites[2];
 
@@ -158,14 +158,17 @@ int draw_message_box_text(matrix_client_t* client, char const* name, char const*
     int avatar_width = 16;
     int avatar_left = x + 4;
     int avatar_top = y + 3;
-    ipa_image_t* avatar = get_avatar(&client->graphics_state->image_map, avatar_url, avatar_width, avatar_width);
-    if (!avatar) {
-        // avatar_left = x;
-        // avatar_width = 0;
-        ipa_graphics_queue_t queue_entry = {IPA_QUEUE_AVATAR};
-        queue_entry.id = queue_avatar_download(client, avatar_url, avatar_width, avatar_width);
+    ipa_image_t* avatar = nullptr;
+    if (avatar_url) {
+        avatar = lookup_avatar(&client->graphics_state->image_map, avatar_url, avatar_width, avatar_width);
+        if (!avatar) {
+            queue_avatar_get(client, avatar_url, avatar_width, avatar_width);
+        } else if (!avatar->in_vram) {
+            image_load_vram(avatar);
+        }
     } else {
-        image_load_vram(avatar);
+        avatar_left = x;
+        avatar_width = 0;
     }
 
     ipa_string_t name_ipa = ipa_string_conv_crop(name, MAX_NAME_WIDTH, L'…'); //honestly the allocation and crop shouldn't matter
@@ -210,10 +213,12 @@ int draw_message_box_text(matrix_client_t* client, char const* name, char const*
         C2D_DrawLineFix(x + box_width + 1, y + 18, dark, x + box_width + 1, y + 2, dark, 1, 0);
     }
 
-    if (avatar) {
+    if (avatar && avatar->in_vram) {
         C2D_SpriteSetPos(avatar->sprite, avatar_left, avatar_top);
         C2D_SpriteSetDepth(avatar->sprite, 0);
         C2D_DrawSprite(avatar->sprite);
+    } else if (avatar_width != 0) {
+        draw_load_sprite(client->graphics_state, avatar_left, avatar_top, dark, 0);
     }
 
     draw_ipa_string(name_ipa, avatar_left + avatar_width + 1, y + v_text_offset, dark, 0);
@@ -405,20 +410,18 @@ void draw_chat_room(matrix_client_t* client) {
 void draw_menu_none(matrix_client_t* client) {
     struct ipa_graphics_state_t* graphics = client->graphics_state;
     if (!graphics->anim_start_time) {
-        if (!graphics->queue.count || graphics->queue.data[0].type != IPA_QUEUE_LOGIN) {
+        ipa_graphics_queue_t* graphic_entry = find_in_graphics_queue_type(&graphics->queue, IPA_QUEUE_LOGIN);
+        if (!graphic_entry) {
             ssize_t id = queue_matrix_login_from_save(&client->login, false);
-            vector$ipa_graphics_queue_t$_push_back(&graphics->queue, (ipa_graphics_queue_t){IPA_QUEUE_LOGIN, id});
+            add_to_graphics_queue(&graphics->queue, IPA_QUEUE_LOGIN, id);
         } else {
-            if (get_finished_queue_size()) {
-                optional$ipa_queue_entry_t$ entry = get_from_finished_queue();
-                if (entry.is_valid && graphics->queue.data[0].id == entry.value.id) {
-                    vector$ipa_graphics_queue_t$_remove(&graphics->queue, 0);
-                    // client->menu = MENU_MAIN;
-                    graphics->anim_start_time = graphics->time_on_menu;
-                }
+            if (graphic_entry->finished) {
+                destroy_queue_entry(&graphic_entry->finished_entry);
+                remove_from_graphics_queue(&graphics->queue, graphic_entry->id);
+                graphics->anim_start_time = graphics->time_on_menu;
             }
         }
-    } else if (graphics->time_on_menu - graphics->anim_start_time >= 60) {
+    } else if (graphics->time_on_menu - graphics->anim_start_time >= 35) {
         client->menu = MENU_MAIN;
     }
 
@@ -435,34 +438,94 @@ void draw_menu_none(matrix_client_t* client) {
         y = min(((BOTTOM_HEIGHT - box_height) / 2) + (graphics->time_on_menu - graphics->anim_start_time) * SPEED * 2, BOTTOM_HEIGHT);
     }
     int x = (BOTTOM_WIDTH - box_width) / 2;
-    int y_text = y + (box_height - 7) / 2;
+    int y_text = y + (box_height - CHAR_MAX_HEIGHT) / 2;
     int x_text = x + (box_width - loading_string.width) / 2;
     draw_bevel_box(graphics, x, y, box_width, box_height, DARK_GREY, BLACK, ORANGE, BLACK, 0.05f);
     draw_ipa_string(loading_string, x_text, y_text, WHITE, 0.05f);
+
+    int y_sprite = y + (box_height - LOAD_SPRITE_WIDTH) / 2;
+    int x_sprite_offset = 8;
+    int x_sprite = x + x_sprite_offset;
+
+    draw_load_sprite(graphics, x_sprite, y_sprite, YELLOW, 0.05f);
+
+    x_sprite = x + box_width - LOAD_SPRITE_WIDTH - x_sprite_offset;
+    draw_load_sprite(graphics, x_sprite, y_sprite, YELLOW, 0.05f);
+}
+
+void reset_graphics_state(struct ipa_graphics_state_t* graphics) {
+    graphics->time_on_menu = 0;
+    graphics->selection = 0;
+    graphics->selection_num = 0;
+    graphics->selected = false;
+    graphics->scroll_pos = 0;
+    graphics->scroll_to_pos = 0;
+    graphics->anim_start_time = 0;
+
+    while (graphics->vram_images.count) {
+        ipa_image_t* image = vector$pair$ipa_image_t_p$size_t$$_get(&graphics->vram_images, 0)->first;
+        image_unload_vram(image);
+        vector$pair$ipa_image_t_p$size_t$$_remove(&graphics->vram_images, 0);
+    }
+    hash_map$img_path$ipa_image_t$_free_callback(&graphics->image_map, nullptr, destroy_image);
+}
+
+void handle_queue(matrix_client_t* client) {
+    struct ipa_graphics_state_t* graphics = client->graphics_state;
+    optional$ipa_queue_entry_t$ entry = get_from_finished_queue(); //only do one per frame to not lag
+    bool destroy = true;
+    if (entry.is_valid) {
+        ipa_graphics_queue_t* graphic_entry = find_in_graphics_queue_id(&graphics->queue, entry.value.id);
+        if (graphic_entry) {
+            if (graphic_entry->type == IPA_QUEUE_SYNC_DIRECTS) {
+                client->rooms = *(vector$matrix_room_t$*)entry.value.result;
+                remove_from_graphics_queue(&graphics->queue, graphic_entry->id);
+                destroy_queue_entry(&entry.value);
+            } else if (graphic_entry->type == IPA_QUEUE_AVATAR || graphic_entry->type == IPA_QUEUE_IMAGE) {
+                ipa_image_t* image = entry.value.result;
+                ipa_image_t* mapped_image = nullptr;
+                for (size_t i = 0; i < graphics->image_map.num_items; i++) {
+                    ipa_image_t* temp = hash_map$img_path$ipa_image_t$_get_by_idx(&graphics->image_map, i);
+                    if (temp->id == entry.value.id) {
+                        mapped_image = temp;
+                        break;
+                    }
+                }
+                if (mapped_image && image) {
+                    *mapped_image = *image;
+                }
+                //todo: gotta figure out a way to put them into the queue without an entry existing
+            } else {
+                graphic_entry->finished = true;
+                graphic_entry->finished_entry = entry.value;
+                destroy = false;
+            }
+        }
+        if (destroy) {
+            if (graphic_entry) {
+                remove_from_graphics_queue(&graphics->queue, graphic_entry->id);
+            }
+            destroy_queue_entry(&entry.value);
+        }
+    }
 }
 
 void draw_and_input(matrix_client_t* client) {
     if (!client->graphics_state) {
         client->graphics_state = calloc(1, sizeof(*client->graphics_state));
+        if (!client->graphics_state) {
+            efuncprintf("failed to allocate graphics state, whatever, exiting");
+            exit(67); //there, now the linter can stop yelling that it can be null
+        }
     }
 
     struct ipa_graphics_state_t* graphics = client->graphics_state;
     if (client->menu != graphics->menu) {
         graphics->menu = client->menu;
-        graphics->time_on_menu = 0;
-        graphics->selection = 0;
-        graphics->selection_num = 0;
-        graphics->scroll_pos = 0;
-        graphics->scroll_to_pos = 0;
-        graphics->anim_start_time = 0;
-
-        while (graphics->vram_images.count) {
-            ipa_image_t* image = vector$pair$ipa_image_t_p$size_t$$_get(&graphics->vram_images, 0)->first;
-            image_unload_vram(image);
-            vector$pair$ipa_image_t_p$size_t$$_remove(&graphics->vram_images, 0);
-        }
-        hash_map$img_path$ipa_image_t$_free_callback(&graphics->image_map, nullptr, destroy_image);
+        reset_graphics_state(graphics);
     }
+
+    handle_queue(client);
 
     while (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) {
         //gotta love a busy wait
@@ -476,7 +539,7 @@ void draw_and_input(matrix_client_t* client) {
             draw_menu_none(client);
             break;
         case MENU_MAIN:
-            draw_main_menu(graphics);
+            draw_main_menu(client);
             break;
         case MENU_DMS:
         case MENU_SPACES:
@@ -508,8 +571,45 @@ void draw_and_input(matrix_client_t* client) {
         if (graphics->selection < 0) {
             graphics->selection = 0;
         }
+    } else if (key_presses & KEY_A) {
+        graphics->selected = true;
     }
 
     C3D_FrameEnd(0);
     graphics->time_on_menu++;
+}
+
+void add_to_graphics_queue(vector$ipa_graphics_queue_t$* queue, enum ipa_graphics_queue_type_t type, ssize_t id) {
+    vector$ipa_graphics_queue_t$_push_back(queue, (ipa_graphics_queue_t){type, id});
+}
+
+ipa_graphics_queue_t* find_in_graphics_queue_id(vector$ipa_graphics_queue_t$* queue, ssize_t id) {
+    for (size_t i = 0; i < queue->count; i++) {
+        if (queue->data[i].id == id) {
+            return &queue->data[i];
+        }
+    }
+    return nullptr;
+}
+
+ipa_graphics_queue_t* find_in_graphics_queue_type(vector$ipa_graphics_queue_t$* queue, enum ipa_graphics_queue_type_t type) {
+    for (size_t i = 0; i < queue->count; i++) {
+        if (queue->data[i].type == type) {
+            return &queue->data[i];
+        }
+    }
+    return nullptr;
+}
+
+void remove_from_graphics_queue(vector$ipa_graphics_queue_t$* queue, ssize_t id) {
+    size_t index = 0;
+    for (index = 0; index < queue->count; index++) {
+        if (queue->data[index].id == id) {
+            break;
+        }
+    }
+    if (index == queue->count) {
+        return;
+    }
+    vector$ipa_graphics_queue_t$_remove(queue, index);
 }

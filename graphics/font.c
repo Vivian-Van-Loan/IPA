@@ -24,6 +24,8 @@ ipa_fontchar_t* font = nullptr;
 size_t font_size = 0;
 
 int MAX_NAME_WIDTH = 0;
+int CHAR_MAX_WIDTH = 0;
+int CHAR_MAX_HEIGHT = 0;
 
 int init_font() {
     int res = -1;
@@ -79,6 +81,9 @@ int init_font() {
         lineptr_adjusted = end;
         font_entry->h_offset = strtol(lineptr_adjusted, &end, 10);
         lineptr_adjusted = end;
+
+        CHAR_MAX_WIDTH = max(CHAR_MAX_WIDTH, font_entry->width);
+        CHAR_MAX_HEIGHT = max(CHAR_MAX_HEIGHT, font_entry->v_offset);
 
         chars_parsed++;
     }

@@ -1,6 +1,7 @@
 #include "main_menu.h"
 
 #include "general.h"
+#include "select_menu.h"
 
 void draw_main_top_shared(struct ipa_graphics_state_t* graphics) {
     C2D_SceneBegin(top);
@@ -16,7 +17,7 @@ void draw_main_menu_button(C2D_Sprite* button_sprite, float x, float y, char con
     C2D_Sprite* gradient = &gradient_sprites[1];
     u32 top_grey = C2D_Color32(0x79, 0x79, 0x79, 0xFF);
 
-    C2D_DrawRectSolidFix(x + 1, y + 1, 0, 30, 30, WHITE); //avatar backdrop
+    C2D_DrawRectSolidFix(x, y, 0, BIG_AVATAR_SIZE, BIG_AVATAR_SIZE, WHITE); //avatar backdrop
 
     if (button_sprite) {
         C2D_SpriteSetPos(button_sprite, x, y);
@@ -29,11 +30,12 @@ void draw_main_menu_button(C2D_Sprite* button_sprite, float x, float y, char con
         C2D_SpriteSetPos(gradient, x + 32 + j * 2, y + 1);
         C2D_DrawSprite(gradient);
     }
-    C2D_DrawLineFix(x, y, DARK_GREY, x, y + 32, DARK_GREY, 1, 0.05f); //avatar box
-    C2D_DrawLineFix(x + 32, y, DARK_GREY, x + 32, y + 32, DARK_GREY, 1, 0.05f);
     C2D_DrawLineFix(x + 32, y + 31, BLACK, x, y + 31, BLACK, 1, 0.05f);
-    C2D_DrawLineFix(x, y + 32, DARK_GREY, x, y, DARK_GREY, 1, 0.05f);
+    C2D_DrawLineFix(x, y, DARK_GREY, x, y + 32, DARK_GREY, 1, 0.05f); //avatar box
+    C2D_DrawLineFix(x + 31, y, DARK_GREY, x + 31, y + 32, DARK_GREY, 1, 0.05f);
+    C2D_DrawLineFix(x, y, DARK_GREY, x + 31, y, DARK_GREY, 1, 0.05f);
 
+    C2D_DrawLineFix(x + 32, y, DARK_GREY, x + 32, y + 32, DARK_GREY, 1, 0.05f);
     C2D_DrawLineFix(x + 32, y, top_grey, x + 192, y, top_grey, 1, 0);
     C2D_DrawLineFix(x + 191, y + 1, DARK_GREY, x + 191, y + 32, DARK_GREY, 1, 0);
     C2D_DrawLineFix(x + 190, y + 1, WHITE, x + 190, y + 31, WHITE, 1, 0);
@@ -129,16 +131,31 @@ void draw_main_menu_bottom(struct ipa_graphics_state_t* graphics) {
     //     // draw_main_menu_button(i, 64, i * 32 + 56);
     // }
     ptrdiff_t anim_time = graphics->time_on_menu - graphics->anim_start_time;
-    draw_main_menu_button(main_sprites + 0, 64, 0 * 32 + max(BOTTOM_HEIGHT - (anim_time - SPEED * 0) * SPEED, 56), "Direct Messages"); //the 4 main menu icons are first in the tex array
-    draw_main_menu_button(main_sprites + 1, 64, 1 * 32 + max(BOTTOM_HEIGHT - (anim_time - SPEED * 1) * SPEED, 56), "Spaces");
-    draw_main_menu_button(main_sprites + 2, 64, 2 * 32 + max(BOTTOM_HEIGHT - (anim_time - SPEED * 2) * SPEED, 56), "Rooms");
-    draw_main_menu_button(main_sprites + 3, 64, 3 * 32 + max(BOTTOM_HEIGHT - (anim_time - SPEED * 3) * SPEED, 56), "Settings");
+    draw_main_menu_button(main_sprites + MENU_SPRITE_OFFSET + 0, 64, 0 * 32 + max(BOTTOM_HEIGHT - (anim_time - SPEED * 0) * SPEED, 56), "Direct Messages");
+    draw_main_menu_button(main_sprites + MENU_SPRITE_OFFSET + 1, 64, 1 * 32 + max(BOTTOM_HEIGHT - (anim_time - SPEED * 1) * SPEED, 56), "Spaces");
+    draw_main_menu_button(main_sprites + MENU_SPRITE_OFFSET + 2, 64, 2 * 32 + max(BOTTOM_HEIGHT - (anim_time - SPEED * 2) * SPEED, 56), "Rooms");
+    draw_main_menu_button(main_sprites + MENU_SPRITE_OFFSET + 3, 64, 3 * 32 + max(BOTTOM_HEIGHT - (anim_time - SPEED * 3) * SPEED, 56), "Settings");
     draw_main_menu_select(59, graphics->selection * 32 + max(BOTTOM_HEIGHT - 5 - (anim_time - SPEED * graphics->selection) * SPEED, 51));
 }
 
-void draw_main_menu(struct ipa_graphics_state_t* graphics) {
+void draw_main_menu(matrix_client_t* client) {
+    struct ipa_graphics_state_t* graphics = client->graphics_state;
     graphics->selection_num = 4;
 
     draw_main_top_shared(graphics);
     draw_main_menu_bottom(graphics);
+
+    //todo: handle touch i guess
+
+    if (graphics->selected) {
+        if (graphics->selection == 0) {
+            setup_select_dm_menu(client);
+        } else if (graphics->selection == 1) {
+            setup_select_spaces_menu(client);
+        } else if (graphics->selection == 2) {
+            setup_select_rooms_menu(client);
+        } else if (graphics->selection == 3) {
+            client->menu = MENU_SETTINGS;
+        }
+    }
 }

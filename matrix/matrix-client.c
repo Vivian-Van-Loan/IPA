@@ -114,10 +114,10 @@ triple$bool$alloc_void$size_t$ process_sync_directs_sync_response(ipa_queue_entr
     struct ipa_process_args_t args = *(struct ipa_process_args_t*)entry.args;
 
     ret.third = sizeof(vector$matrix_room_t$);
-    ret.second = malloc(ret.third);
+    ret.second = calloc(ret.third, 1);
     vector$matrix_room_t$* vec = ret.second;
 
-    if (entry.result) {
+    if (!entry.result) {
         efuncprintf("Failed to download directs rooms json\n");
         return ret;
     }
@@ -196,14 +196,15 @@ triple$bool$alloc_void$size_t$ process_sync_directs_install_filter_response(ipa_
 
     char const* ROOMS_PATH = SAVE_DIR"directs_rooms.json";
 
-    ipa_queue_entry_t new_entry = make_download_file_queue_entry_callback(buf, ROOMS_PATH, process_sync_directs_sync_response, nullptr, 0);
+    struct ipa_process_args_t* next_args = ipa_process_args_new(args.login, false, nullptr, nullptr, 0);
+    ipa_queue_entry_t new_entry = make_download_file_queue_entry_callback(buf, ROOMS_PATH, process_sync_directs_sync_response, next_args, sizeof(*next_args));
     add_to_work_queue_with_id(new_entry, entry.id);
     return ret;
 }
 
 triple$bool$alloc_void$size_t$ process_matrix_client_sync_directs(ipa_queue_entry_t entry) {
     triple$bool$alloc_void$size_t$ ret = {true};
-    struct ipa_process_args_t* args = (struct ipa_process_args_t*)entry.args;
+    struct ipa_process_args_t* args = entry.args;
     if (!entry.result) {
         efuncprintf("Failed to download sync json\n");
         return ret;
@@ -287,8 +288,19 @@ ssize_t queue_matrix_client_sync_directs(matrix_client_t* client) {
     pthread_mutex_unlock(&client->login.mutex);
     curl_free(filter_url);
 
-    struct ipa_process_args_t* args = ipa_process_args_new(&client->login, false, process_matrix_client_sync_directs, nullptr, 0);
+    struct ipa_process_args_t* next_args = ipa_process_args_new(&client->login, false, nullptr, nullptr, 0);
+    struct ipa_process_args_t* args = ipa_process_args_new(&client->login, false, process_matrix_client_sync_directs, next_args, sizeof(*next_args));
     return add_download_str_to_work_queue_callback(buf, matrix_process_data, args, sizeof(*args));
+}
+
+ssize_t queue_matrix_client_sync_spaces(matrix_client_t* client) {
+    efuncprintf("was called before it was implemented");
+    exit(1);
+}
+
+ssize_t queue_matrix_client_sync_rooms(matrix_client_t* client) {
+    efuncprintf("was called before it was implemented");
+    exit(1);
 }
 
 ssize_t queue_matrix_client_sync_dump(matrix_client_t* client) {

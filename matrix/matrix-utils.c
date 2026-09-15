@@ -80,7 +80,8 @@ triple$bool$alloc_void$size_t$ matrix_process_data(ipa_queue_entry_t entry) {
     struct ipa_process_args_t args = *(struct ipa_process_args_t*)entry.args;
     bool retry = args.retry;
     if (entry.status == 200) {
-        ret.second = entry.result;
+        ret.second = malloc(entry.result_size);
+        memcpy(ret.second, entry.result, entry.result_size);
         ret.third = entry.result_size;
         if (args.next_callback) {
             ret.first = false;

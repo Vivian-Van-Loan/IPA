@@ -91,7 +91,7 @@ x 3 5 0
 y 3 5 0
 z 3 5 0
 { 0 5 1
-| 0 9 4
+| 0 9 4 //ok well i measure again and 9 pixels is correct but just feels wrong, might want to honestly crop it down
 } 0 5 0
 ~ 0 7 1
 … 8 5 0

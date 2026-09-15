@@ -32,6 +32,8 @@ typedef struct matrix_client_t {
 
 ssize_t queue_matrix_client_sync_account_data(matrix_client_t* client);
 ssize_t queue_matrix_client_sync_directs(matrix_client_t* client);
+ssize_t queue_matrix_client_sync_spaces(matrix_client_t* client);
+ssize_t queue_matrix_client_sync_rooms(matrix_client_t* client);
 ssize_t queue_matrix_client_sync_dump(matrix_client_t* client);
 
 typedef struct matrix_room_info_t {

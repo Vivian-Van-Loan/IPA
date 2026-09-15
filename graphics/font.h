@@ -19,6 +19,8 @@ typedef struct ipa_string_t {
 #include "../types/pair.h"
 
 extern int MAX_NAME_WIDTH;
+extern int CHAR_MAX_WIDTH;
+extern int CHAR_MAX_HEIGHT;
 
 int init_font();
 void destroy_font();

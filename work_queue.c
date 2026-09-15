@@ -306,6 +306,8 @@ void* work_queue_loop(void* arg) {
         ipa_queue_entry_t entry = vector$ipa_queue_entry_t$_pop(&work_queue);
         pthread_mutex_unlock(&work_queue_mutex);
 
+        bool add_to_finished_queue = true;
+
         switch (entry.type) {
             case IPA_QUEUE_ENTRY_TYPE_DOWNLOAD_STR: {
                 pair$alloc_str$long$ result = http_get_string(entry.url);
@@ -320,26 +322,26 @@ void* work_queue_loop(void* arg) {
                 break;
             }
             case IPA_QUEUE_ENTRY_TYPE_DOWNLOAD_FILE: {
-                char const* path = entry.args;
+                char const* path = entry.download_args;
                 long status = http_get_file(entry.url, path);
                 entry.status = status;
                 entry.result = strdup(path);
                 break;
             }
             case IPA_QUEUE_ENTRY_TYPE_POST_DOWNLOAD_STR: {
-                pair$alloc_str$long$ result = http_post_get_string(entry.url, entry.args);
+                pair$alloc_str$long$ result = http_post_get_string(entry.url, entry.download_args);
                 entry.status = result.second;
                 entry.result = result.first;
                 break;
             }
             case IPA_QUEUE_ENTRY_TYPE_POST_DOWNLOAD_DATA: {
-                pair$alloc_void$long$ result = http_post_get_data(entry.url, entry.args);
+                pair$alloc_void$long$ result = http_post_get_data(entry.url, entry.download_args);
                 entry.status = result.second;
                 entry.result = result.first;
                 break;
             }
             case IPA_QUEUE_ENTRY_TYPE_POST_DOWNLOAD_FILE: {
-                pair$str_const$str_const$ args = get_str_pair_args(entry.args);
+                pair$str_const$str_const$ args = get_str_pair_args(entry.download_args);
                 char const* post_data = args.first;
                 char const* path = args.second;
                 long status = http_post_get_file(entry.url, post_data, path);
@@ -351,6 +353,7 @@ void* work_queue_loop(void* arg) {
                 triple$bool$alloc_void$size_t$ result = entry.func(entry);
                 entry.result = result.second;
                 entry.result_size = result.third;
+                add_to_finished_queue = result.first;
                 break;
         }
 
@@ -369,7 +372,6 @@ void* work_queue_loop(void* arg) {
             }
         }
 
-        bool add_to_finished_queue = true;
         if (entry.type != IPA_QUEUE_ENTRY_TYPE_FUNCTION && entry.func) {
             triple$bool$alloc_void$size_t$ result = entry.func(entry);
             free(entry.result);

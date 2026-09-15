@@ -7,6 +7,30 @@ void draw_background(struct ipa_graphics_state_t* graphics, unsigned x, unsigned
     }
 }
 
+void draw_wifi_sprite(struct ipa_graphics_state_t* graphics, unsigned x, unsigned y, float depth) {
+    u8 strength = osGetWifiStrength();
+    C2D_Sprite* signal = main_sprites + SIGNAL_SPRITE_OFFSET + strength;
+    C2D_SpriteSetPos(signal, x, y);
+    C2D_SpriteSetDepth(signal, depth);
+    C2D_DrawSprite(signal);
+}
+
+void draw_battery_sprite(struct ipa_graphics_state_t* graphics, unsigned x, unsigned y, float depth) {
+    bool charging = 0;
+    u8 level = 4;
+    PTMU_GetAdapterState(&charging); //so it is possible for these to be invalid (such as on azahar), in which case it will not write to the pointer
+    PTMU_GetBatteryLevel(&level); //As such the default values catch it. Enjoy the perpetually empty battery on emulator!
+    C2D_Sprite* battery;
+    if (charging) {
+        battery = main_sprites + BATTERY_SPRITE_OFFSET + BATTERY_SPRITE_LEN - 1; //charging is last
+    } else {
+        battery = main_sprites + BATTERY_SPRITE_OFFSET + level;
+    }
+    C2D_SpriteSetPos(battery, x, y);
+    C2D_SpriteSetDepth(battery, depth);
+    C2D_DrawSprite(battery);
+}
+
 void draw_top_screen_left(struct ipa_graphics_state_t* graphics, float base_depth) {
     C2D_DrawRectSolidFix(0, 0, base_depth, 40, TOP_HEIGHT, WHITE);
 
@@ -18,8 +42,9 @@ void draw_top_screen_left(struct ipa_graphics_state_t* graphics, float base_dept
 
     C2D_DrawRectSolidFix(7, 209, base_depth + DEPTH_STEP_SMALL, 26, 2, overlay_colour); //colour bar
 
-    C2D_DrawRectSolidFix(2, 4, base_depth + DEPTH_STEP_SMALL, 17, 11, BLACK); //todo: battery
-    C2D_DrawRectSolidFix(21, 1, base_depth + DEPTH_STEP_SMALL, 16, 16, BLACK); //todo: wireless state
+    draw_wifi_sprite(graphics, 21, 1, base_depth + DEPTH_STEP_SMALL);
+
+    draw_battery_sprite(graphics, 2, 4, base_depth + DEPTH_STEP_SMALL);
 }
 
 void draw_bevel_box(struct ipa_graphics_state_t* graphics, int x, int y, int w, int h, u32 bar1, u32 bar2, u32 border_in, u32 border_out, float base_depth) {
@@ -66,4 +91,15 @@ void draw_bevel_box(struct ipa_graphics_state_t* graphics, int x, int y, int w, 
     C2D_DrawLineFix(x + w - 6, y + h, border_out, x + w, y + h - 6, border_out, 1, base_depth + DEPTH_STEP_BIG);
     C2D_DrawLineFix(x + w - 6, y + h - 2, border_in, x + w - 2, y + h - 6, border_in, 2, base_depth + DEPTH_STEP_BIG + DEPTH_STEP_SMALL); //bottom right
     C2D_DrawLineFix(x + w - 7, y + h - 3, border_out, x + w - 3, y + h - 7, border_out, 1, base_depth + DEPTH_STEP_BIG);
+}
+
+void draw_load_sprite(struct ipa_graphics_state_t* graphics, int x, int y, u32 colour, float depth) {
+    C2D_ImageTint load_tint;
+    C2D_PlainImageTint(&load_tint, colour, 1);
+
+    int load_frame = ((graphics->time_on_menu) / 4) % LOAD_SPRITE_LEN;
+    C2D_Sprite* load_sprite = &main_sprites[LOAD_SPRITE_OFFSET + load_frame];
+    C2D_SpriteSetDepth(load_sprite, depth);
+    C2D_SpriteSetPos(load_sprite, x, y);
+    C2D_DrawSpriteTinted(load_sprite, &load_tint);
 }

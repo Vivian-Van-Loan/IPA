@@ -69,6 +69,32 @@ ipa_image_t* lookup_image(hash_map$img_path$ipa_image_t$* map, char const* mxc_u
     return lookup_direct(map, buf);
 }
 
+void add_image_to_map(hash_map$img_path$ipa_image_t$* map, char const* mxc_url, ipa_image_t image) {
+    if (!mxc_url) {
+        return;
+    }
+    char const* img_id = strrchr(mxc_url, '/');
+    if (!img_id) {
+        return;
+    }
+    img_path path;
+    form_image_path(path, img_id + 1);
+    hash_map$img_path$ipa_image_t$_add(map, path, image);
+}
+
+void add_avatar_to_map(hash_map$img_path$ipa_image_t$* map, char const* mxc_url, ipa_image_t image, size_t width, size_t height) {
+    if (!mxc_url) {
+        return;
+    }
+    char const* img_id = strrchr(mxc_url, '/');
+    if (!img_id) {
+        return;
+    }
+    img_path path;
+    form_avatar_path(path, img_id + 1, width, height);
+    hash_map$img_path$ipa_image_t$_add(map, path, image);
+}
+
 enum image_format get_image_format() {
     enum image_format format = IMAGE_FORMAT_UNKNOWN;
     struct curl_header* header;
@@ -95,7 +121,8 @@ enum image_format get_image_format() {
 }
 
 struct image_process_args_t {
-    img_path path;
+    matrix_login_t* login;
+    img_url url;
     size_t width;
     size_t height;
 };
@@ -110,23 +137,28 @@ triple$bool$alloc_void$size_t$ process_image_data(ipa_queue_entry_t entry) {
     }
     enum image_format format = get_image_format();
     ipa_image_t temp;
+    img_path path;
     if (args->width != (size_t)-1) {
-        temp = load_resize_compress_save(entry.result, entry.result_size, format, args->width, args->height, args->path);
+        form_avatar_path(path, strrchr(args->url, '/') + 1, args->width, args->height);
+        temp = load_resize_compress_save(entry.result, entry.result_size, format, args->width, args->height, path);
     } else {
+        form_image_path(path, strrchr(args->url, '/') + 1);
         temp = load_compress_image(entry.result, entry.result_size, format);
     }
     if (!temp.data) {
         return ret;
     }
+    temp.id = entry.id;
     ret.third = sizeof(ipa_image_info_t);
     ret.second = malloc(ret.third);
     ipa_image_info_t* info = ret.second;
     info->image = temp;
-    memcpy(info->path, args->path, sizeof(args->path));
+    memcpy(info->path, path, sizeof(path));
 
     return ret;
 }
 
+//this has a huge performance cost due to disk hits, be very careful using
 ipa_image_t* get_avatar(hash_map$img_path$ipa_image_t$* map, char const* mxc_url, size_t width, size_t height) {
     if (!mxc_url) {
         return nullptr;
@@ -227,7 +259,8 @@ ssize_t queue_image_download(matrix_client_t* client, char const* mxc_url) {
     }
 
     struct image_process_args_t* next_args = malloc(sizeof(struct image_process_args_t));
-    form_image_path(next_args->path, img_id + 1);
+    strncpy(next_args->url, mxc_url, sizeof(next_args->url) - 1);
+    next_args->url[sizeof(next_args->url) - 1] = '\0';
     next_args->width = -1;
     next_args->height = -1;
     struct ipa_process_args_t* args = ipa_process_args_new(&client->login, false, process_image_data, next_args, sizeof(*next_args));
@@ -246,7 +279,8 @@ ssize_t queue_avatar_download(matrix_client_t* client, char const* mxc_url, size
         return -1;
     }
     struct image_process_args_t* next_args = malloc(sizeof(struct image_process_args_t));
-    form_avatar_path(next_args->path, img_id + 1, width, height);
+    strncpy(next_args->url, mxc_url, sizeof(next_args->url) - 1);
+    next_args->url[sizeof(next_args->url) - 1] = '\0';
     next_args->width = width;
     next_args->height = height;
     struct ipa_process_args_t* args = ipa_process_args_new(&client->login, false, process_image_data, next_args, sizeof(*next_args));
@@ -254,6 +288,118 @@ ssize_t queue_avatar_download(matrix_client_t* client, char const* mxc_url, size
     char buf[URL_BUFFER_SIZE];
     matrix_get_mxc_url(&client->login, mxc_url, buf);
     return add_download_data_to_work_queue_callback(buf, matrix_process_data, &args, sizeof(*args));
+}
+
+triple$bool$alloc_void$size_t$ process_load_image(ipa_queue_entry_t entry) {
+    triple$bool$alloc_void$size_t$ ret = {true};
+
+    struct image_process_args_t* args = entry.args;
+    img_path path;
+    form_image_path(path, strrchr(args->url, '/') + 1);
+
+    // FILE* f = fopen(path, "rb"); //let's go disk cache baby
+    // if (f) {
+    //     off_t size = get_file_size_fd(fileno(f));
+    //     unsigned char* data = malloc(size);
+    //     // if (fread(data, 1, size, f) != size) {
+    //     //     eprintf("Failed to read avatar image\n");
+    //     //     free(data);
+    //     //     fclose(f);
+    //     //     return nullptr;
+    //     // }
+    //     fread(data, 1, size, f);
+    //     fclose(f);
+    //     temp = load_etc_image(data, width, height, IMAGE_FORMAT_ETC1A4);
+    //     free(data);
+    //     image = hash_map$img_path$ipa_image_t$_add(map, path, temp);
+    //     if (!image || !image->data) {
+    //         destroy_image(&temp);
+    //         return nullptr;
+    //     }
+    //     return image;
+    // }
+
+    return ret;
+}
+
+triple$bool$alloc_void$size_t$ process_load_avatar(ipa_queue_entry_t entry) {
+    triple$bool$alloc_void$size_t$ ret = {true};
+
+    struct image_process_args_t* args = entry.args;
+    img_path path;
+    form_avatar_path(path, strrchr(args->url, '/') + 1, args->width, args->height);
+
+    FILE* f = fopen(path, "rb"); //let's go disk cache baby
+    if (f) {
+        off_t size = get_file_size_fd(fileno(f));
+        ipa_image_t temp;
+        unsigned char* data = malloc(size);
+        fread(data, 1, size, f);
+        fclose(f);
+        temp = load_etc_image(data, args->width, args->height, IMAGE_FORMAT_ETC1A4);
+        free(data);
+        if (!temp.data) {
+            destroy_image(&temp);
+            return ret;
+        }
+        temp.id = entry.id;
+        ret.first = true;
+        ret.third = sizeof(temp);
+        ret.second = malloc(ret.third);
+        memcpy(ret.second, &temp, ret.third);
+        return ret;
+    }
+
+    struct image_process_args_t* next_args = malloc(sizeof(struct image_process_args_t));
+    strncpy(next_args->url, args->url, sizeof(next_args->url) - 1);
+    next_args->url[sizeof(next_args->url) - 1] = '\0';
+    next_args->width = args->width;
+    next_args->height = args->height;
+    struct ipa_process_args_t* new_args = ipa_process_args_new(args->login, false, process_image_data, next_args, sizeof(*next_args));
+
+    char buf[URL_BUFFER_SIZE];
+    matrix_get_mxc_url(args->login, args->url, buf);
+    ipa_queue_entry_t new_entry = make_download_data_queue_entry_callback(buf, matrix_process_data, new_args, sizeof(*new_args));
+    add_to_work_queue_with_id(new_entry, entry.id);
+
+    ret.first = false;
+    return ret;
+}
+
+//see below on the map thing
+ssize_t queue_image_get(matrix_client_t* client, char const* mxc_url) {
+    if (!mxc_url || !client) {
+        return -1;
+    }
+    struct image_process_args_t* next_args = malloc(sizeof(struct image_process_args_t));
+    strncpy(next_args->url, mxc_url, sizeof(next_args->url) - 1);
+    next_args->url[sizeof(next_args->url) - 1] = '\0';
+    next_args->width = -1;
+    next_args->height = -1;
+    next_args->login = &client->login;
+    struct ipa_process_args_t* args = ipa_process_args_new(&client->login, false, process_image_data, next_args, sizeof(*next_args));
+    ssize_t id = add_function_to_work_queue(process_load_image, nullptr, 0, args, sizeof(*args));
+    add_image_to_map(&client->graphics_state->image_map, mxc_url, (ipa_image_t){.id = id});
+    add_to_graphics_queue(&client->graphics_state->queue, IPA_QUEUE_AVATAR, id);
+    return id;
+}
+
+//also adds an empty image with id set to the queue id to the hash map, for tracking
+ssize_t queue_avatar_get(matrix_client_t* client, char const* mxc_url, size_t width, size_t height) {
+    if (!mxc_url || !client || width == 0 || height == 0) {
+        return -1;
+    }
+    struct image_process_args_t* next_args = malloc(sizeof(struct image_process_args_t));
+    strncpy(next_args->url, mxc_url, sizeof(next_args->url) - 1);
+    next_args->url[sizeof(next_args->url) - 1] = '\0';
+    next_args->width = width;
+    next_args->height = height;
+    next_args->login = &client->login;
+    // struct ipa_process_args_t* args = ipa_process_args_new(&client->login, false, process_image_data, next_args, sizeof(*next_args));
+    ssize_t id = add_function_to_work_queue(process_load_avatar, nullptr, 0, next_args, sizeof(*next_args));
+    add_avatar_to_map(&client->graphics_state->image_map, mxc_url, (ipa_image_t){.id = id}, width, height);
+    add_to_graphics_queue(&client->graphics_state->queue, IPA_QUEUE_AVATAR, id);
+    return id;
 }
 
 ipa_image_t load_etc_image(unsigned char const* input, size_t width, size_t height, enum image_format format) {
@@ -410,6 +556,7 @@ ipa_image_t load_resize_compress_save(unsigned char const* input, size_t len, en
 
     // form_image_path(image.path, image_id, image.width, image.height);
     // strncpy(image.path, path, sizeof(image.path));
+    // image.path[sizeof(image.path) - 1] = '\0';
     FILE* f = fopen(path, "wb");
     if (!f) {
         efuncprintf("Failed to open file: %s", path);

@@ -104,6 +104,11 @@ dkp_add_asset_target(${PROJECT_NAME}_romfs romfs)
 # Texture atlas (example)
 ctr_add_graphics_target(IPA_TEXTURES_MAIN ATLAS
 		INPUTS resources/gfx/main/D.png resources/gfx/main/S.png resources/gfx/main/R.png resources/gfx/main/Gear.png
+		resources/gfx/main/signal0.png resources/gfx/main/signal1.png resources/gfx/main/signal2.png resources/gfx/main/signal3.png
+		resources/gfx/main/battery0.png resources/gfx/main/battery1.png resources/gfx/main/battery2.png resources/gfx/main/battery3.png
+		resources/gfx/main/battery4.png resources/gfx/main/battery5.png resources/gfx/main/batterycharge.png
+		resources/gfx/main/load0.png resources/gfx/main/load1.png resources/gfx/main/load2.png resources/gfx/main/load3.png
+		resources/gfx/main/load4.png resources/gfx/main/load5.png resources/gfx/main/load6.png resources/gfx/main/load7.png
 )
 
 ctr_add_graphics_target(IPA_TEXTURES_GRADIENT ATLAS
