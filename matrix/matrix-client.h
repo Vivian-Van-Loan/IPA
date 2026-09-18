@@ -44,10 +44,6 @@ typedef struct matrix_room_info_t {
 
 ssize_t queue_matrix_client_load_room(matrix_client_t* client, char const* room_id, bool reverse);
 
-// int matrix_client_load_current_room(matrix_client_t* client, bool reverse);
-
-// int matrix_client_set_and_sync_room(matrix_client_t* client, matrix_room_t* room);
-
 matrix_client_t make_client();
 void destroy_client(matrix_client_t* client);
 

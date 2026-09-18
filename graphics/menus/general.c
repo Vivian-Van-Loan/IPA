@@ -1,5 +1,7 @@
 #include "general.h"
 
+ipa_string_t loading_string;
+
 void draw_background(struct ipa_graphics_state_t* graphics, unsigned x, unsigned y, unsigned w, unsigned h) {
     for (size_t i = 0; i < h / 4; i++) {
         C2D_DrawLineFix(x, i * 4 + (y + 1), MEDIUM_GREY, x + w, i * 4 + (y + 1), MEDIUM_GREY, 3, 0); //thickness is from middle
@@ -102,4 +104,44 @@ void draw_load_sprite(struct ipa_graphics_state_t* graphics, int x, int y, u32 c
     C2D_SpriteSetDepth(load_sprite, depth);
     C2D_SpriteSetPos(load_sprite, x, y);
     C2D_DrawSpriteTinted(load_sprite, &load_tint);
+}
+
+void draw_load_box(struct ipa_graphics_state_t* graphics) {
+    if (graphics->anim_id != IPA_ANIM_LOAD_IN && graphics->anim_id != IPA_ANIM_LOAD_OUT) {
+        return;
+    }
+    if (!loading_string.str) {
+        loading_string = ipa_string_convert("LOADING…");
+    }
+    int y;
+    int x;
+    constexpr int box_width = 287;
+    constexpr int box_height = 70;
+    constexpr int speed_mod = 2;
+    if (graphics->anim_id == IPA_ANIM_LOAD_IN) {
+        y = max(BOTTOM_HEIGHT - (graphics->time_on_menu - graphics->anim_start_time) * SPEED * speed_mod, (BOTTOM_HEIGHT - box_height) / 2);
+        graphics->load_y = y;
+    } else if (graphics->anim_id == IPA_ANIM_LOAD_OUT) {
+        graphics->load_y += SPEED * speed_mod;
+        y = graphics->load_y;
+        if (graphics->load_y >= BOTTOM_HEIGHT) {
+            graphics->anim_id = graphics->next_anim_id;
+            graphics->anim_start_time = graphics->time_on_menu;
+            graphics->load_y = BOTTOM_HEIGHT;
+        }
+    }
+    x = (BOTTOM_WIDTH - box_width) / 2;
+    int y_text = y + (box_height - CHAR_MAX_HEIGHT) / 2;
+    int x_text = x + (box_width - loading_string.width) / 2;
+    draw_bevel_box(graphics, x, y, box_width, box_height, DARK_GREY, BLACK, ORANGE, BLACK, 0.05f);
+    draw_ipa_string(loading_string, x_text, y_text, WHITE, 0.05f);
+
+    int y_sprite = y + (box_height - LOAD_SPRITE_WIDTH) / 2;
+    int x_sprite_offset = 8;
+    int x_sprite = x + x_sprite_offset;
+
+    draw_load_sprite(graphics, x_sprite, y_sprite, YELLOW, 0.05f);
+
+    x_sprite = x + box_width - LOAD_SPRITE_WIDTH - x_sprite_offset;
+    draw_load_sprite(graphics, x_sprite, y_sprite, YELLOW, 0.05f);
 }

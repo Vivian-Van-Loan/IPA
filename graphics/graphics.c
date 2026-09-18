@@ -22,8 +22,6 @@ u32 overlay_colour;
 u32 overlay_colour_dark;
 u32 overlay_colour_light;
 
-ipa_string_t loading_string;
-
 unsigned char overlay_channel(unsigned char base, unsigned char overlay) {
     float b = (float)base / 255.0f;
     float o = (float)overlay / 255.0f;
@@ -90,8 +88,6 @@ int init_graphics() {
     overlay_colour_dark = C2D_Color_Overlay(DARK_GREY, overlay_colour);
     overlay_colour_light = C2D_Color_Overlay(LIGHT_GREY, overlay_colour);
     // C2D_PlainImageTint(&overlay_tint, overlay_colour, 0.5f);
-
-    loading_string = ipa_string_convert("LOADING…");
 
     return 0;
 }
@@ -409,48 +405,35 @@ void draw_chat_room(matrix_client_t* client) {
 
 void draw_menu_none(matrix_client_t* client) {
     struct ipa_graphics_state_t* graphics = client->graphics_state;
-    if (!graphics->anim_start_time) {
-        ipa_graphics_queue_t* graphic_entry = find_in_graphics_queue_type(&graphics->queue, IPA_QUEUE_LOGIN);
-        if (!graphic_entry) {
-            ssize_t id = queue_matrix_login_from_save(&client->login, false);
-            add_to_graphics_queue(&graphics->queue, IPA_QUEUE_LOGIN, id);
-        } else {
-            if (graphic_entry->finished) {
-                destroy_queue_entry(&graphic_entry->finished_entry);
-                remove_from_graphics_queue(&graphics->queue, graphic_entry->id);
-                graphics->anim_start_time = graphics->time_on_menu;
-            }
-        }
-    } else if (graphics->time_on_menu - graphics->anim_start_time >= 35) {
-        client->menu = MENU_MAIN;
-    }
 
     draw_main_top_shared(graphics);
     C2D_SceneBegin(bottom);
     draw_main_bottom_shared(graphics);
 
-    constexpr int box_width = 287;
-    constexpr int box_height = 70;
-    int y;
-    if (!graphics->anim_start_time) {
-        y = max(BOTTOM_HEIGHT - (graphics->time_on_menu) * SPEED * 2, (BOTTOM_HEIGHT - box_height) / 2);
-    } else {
-        y = min(((BOTTOM_HEIGHT - box_height) / 2) + (graphics->time_on_menu - graphics->anim_start_time) * SPEED * 2, BOTTOM_HEIGHT);
+    if (graphics->anim_id == IPA_ANIM_NONE) {
+        graphics->anim_id = IPA_ANIM_LOAD_IN;
+        graphics->anim_start_time = graphics->time_on_menu;
+        graphics->next_anim_id = IPA_ANIM_MENU_1;
     }
-    int x = (BOTTOM_WIDTH - box_width) / 2;
-    int y_text = y + (box_height - CHAR_MAX_HEIGHT) / 2;
-    int x_text = x + (box_width - loading_string.width) / 2;
-    draw_bevel_box(graphics, x, y, box_width, box_height, DARK_GREY, BLACK, ORANGE, BLACK, 0.05f);
-    draw_ipa_string(loading_string, x_text, y_text, WHITE, 0.05f);
-
-    int y_sprite = y + (box_height - LOAD_SPRITE_WIDTH) / 2;
-    int x_sprite_offset = 8;
-    int x_sprite = x + x_sprite_offset;
-
-    draw_load_sprite(graphics, x_sprite, y_sprite, YELLOW, 0.05f);
-
-    x_sprite = x + box_width - LOAD_SPRITE_WIDTH - x_sprite_offset;
-    draw_load_sprite(graphics, x_sprite, y_sprite, YELLOW, 0.05f);
+    if (graphics->anim_id == IPA_ANIM_LOAD_IN || graphics->anim_id == IPA_ANIM_LOAD_OUT) {
+        draw_load_box(graphics);
+        if (graphics->anim_id == IPA_ANIM_LOAD_IN) {
+            ipa_graphics_queue_t* graphic_entry = find_in_graphics_queue_type(&graphics->queue, IPA_QUEUE_LOGIN);
+            if (!graphic_entry) {
+                ssize_t id = queue_matrix_login_from_save(&client->login, false);
+                add_to_graphics_queue(&graphics->queue, IPA_QUEUE_LOGIN, id);
+            } else {
+                if (graphic_entry->finished) {
+                    destroy_queue_entry(&graphic_entry->finished_entry);
+                    remove_from_graphics_queue(&graphics->queue, graphic_entry->id);
+                    graphics->anim_start_time = graphics->time_on_menu;
+                    graphics->anim_id = IPA_ANIM_LOAD_OUT;
+                }
+            }
+        }
+    } else if (graphics->anim_id == IPA_ANIM_MENU_1) {
+        client->menu = MENU_MAIN;
+    }
 }
 
 void reset_graphics_state(struct ipa_graphics_state_t* graphics) {
@@ -461,6 +444,12 @@ void reset_graphics_state(struct ipa_graphics_state_t* graphics) {
     graphics->scroll_pos = 0;
     graphics->scroll_to_pos = 0;
     graphics->anim_start_time = 0;
+    graphics->anim_id = 0;
+    graphics->next_anim_id = 0;
+    graphics->load_y = BOTTOM_HEIGHT;
+    for (size_t i = 0; i < lengthof(graphics->track_y); i++) {
+        graphics->track_y[i] = 0;
+    }
 
     while (graphics->vram_images.count) {
         ipa_image_t* image = vector$pair$ipa_image_t_p$size_t$$_get(&graphics->vram_images, 0)->first;
@@ -481,6 +470,8 @@ void handle_queue(matrix_client_t* client) {
                 client->rooms = *(vector$matrix_room_t$*)entry.value.result;
                 remove_from_graphics_queue(&graphics->queue, graphic_entry->id);
                 destroy_queue_entry(&entry.value);
+            } else if (graphic_entry->type == IPA_QUEUE_LOAD_ROOM) {
+
             } else if (graphic_entry->type == IPA_QUEUE_AVATAR || graphic_entry->type == IPA_QUEUE_IMAGE) {
                 ipa_image_t* image = entry.value.result;
                 ipa_image_t* mapped_image = nullptr;
@@ -559,20 +550,22 @@ void draw_and_input(matrix_client_t* client) {
 
     u32 key_presses = hidKeysDown();
 
-    if (key_presses & KEY_START)
-        exit(0);
-    if (key_presses & KEY_DOWN) {
-        graphics->selection++;
-        if (graphics->selection >= graphics->selection_num) {
-            graphics->selection = graphics->selection_num - 1;
+    if (!graphics->selected) {
+        if (key_presses & KEY_START)
+            exit(0);
+        if (key_presses & KEY_DOWN) {
+            graphics->selection++;
+            if (graphics->selection >= graphics->selection_num) {
+                graphics->selection = graphics->selection_num - 1;
+            }
+        } else if (key_presses & KEY_UP) {
+            graphics->selection--;
+            if (graphics->selection < 0) {
+                graphics->selection = 0;
+            }
+        } else if (key_presses & KEY_A) {
+            graphics->selected = true;
         }
-    } else if (key_presses & KEY_UP) {
-        graphics->selection--;
-        if (graphics->selection < 0) {
-            graphics->selection = 0;
-        }
-    } else if (key_presses & KEY_A) {
-        graphics->selected = true;
     }
 
     C3D_FrameEnd(0);

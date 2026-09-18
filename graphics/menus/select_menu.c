@@ -7,8 +7,22 @@ void draw_select_menu_bottom(matrix_client_t* client) {
     C2D_SceneBegin(bottom);
     struct ipa_graphics_state_t* graphics = client->graphics_state;
 
-    if (find_in_graphics_queue_type(&graphics->queue, IPA_QUEUE_SYNC_DIRECTS)) {
-        //todo: draw loading
+    draw_main_bottom_shared(graphics);
+
+    if (graphics->anim_id == IPA_ANIM_NONE) {
+        graphics->anim_id = IPA_ANIM_LOAD_IN;
+        graphics->next_anim_id = IPA_ANIM_MENU_1;
+        graphics->anim_start_time = graphics->time_on_menu;
+    }
+    if (graphics->anim_id == IPA_ANIM_LOAD_IN || graphics->anim_id == IPA_ANIM_LOAD_OUT) {
+        draw_load_box(graphics);
+        if (graphics->anim_id == IPA_ANIM_LOAD_IN) {
+            if (!find_in_graphics_queue_type(&graphics->queue, IPA_QUEUE_SYNC_DIRECTS)) {
+                graphics->anim_id = IPA_ANIM_LOAD_OUT;
+                graphics->anim_start_time = graphics->time_on_menu;
+            }
+        }
+        return;
     }
 
     ptrdiff_t const num_rooms = client->rooms.count;
@@ -32,8 +46,6 @@ void draw_select_menu_bottom(matrix_client_t* client) {
             graphics->scroll_pos = graphics->scroll_to_pos;
         }
     }
-
-    draw_main_bottom_shared(graphics);
 
     ptrdiff_t const min_scroll_idx = max(0, graphics->scroll_pos - (6 * BIG_AVATAR_SIZE));
     //todo: please take a nice critical look at whatever this vrame image system is and see if it can be done better
@@ -76,6 +88,8 @@ void draw_select_menu_bottom(matrix_client_t* client) {
         }
     }
 
+    ptrdiff_t anim_time = graphics->time_on_menu - graphics->anim_start_time;
+
     int button_y_start = 24;
     if (num_rooms < 6) {
         button_y_start = 24 + (6 - num_rooms) * 32 / 2;
@@ -88,9 +102,16 @@ void draw_select_menu_bottom(matrix_client_t* client) {
             sprite = graphics->vram_images.data[i_0].first->sprite;
         }
         int button_x = 64;
-        int button_y = i_0 * 32 + max(BOTTOM_HEIGHT - (graphics->time_on_menu - SPEED * i_0) * SPEED, button_y_start);
+        int button_y;
+        if (graphics->anim_id != IPA_ANIM_MENU_CHANGE) {
+            button_y = i_0 * 32 + max(BOTTOM_HEIGHT - (anim_time - SPEED * i_0) * SPEED, button_y_start);
+        } else {
+            button_y = i_0 * 32 + max(button_y_start + (anim_time - SPEED * i_0) * SPEED, button_y_start);
+            graphics->track_y[i_0] = button_y;
+            //todo: really bad temp nonsense, fix that up later
+        }
         draw_main_menu_button(sprite, button_x, button_y, room->name);
-        if (avatar && !avatar->data) {
+        if (avatar && !sprite) {
             int load_x = button_x + (BIG_AVATAR_SIZE - LOAD_SPRITE_WIDTH) / 2;
             int load_y = button_y + (BIG_AVATAR_SIZE - LOAD_SPRITE_WIDTH) / 2;
             draw_load_sprite(graphics, load_x, load_y, YELLOW, 0.05f);
@@ -100,13 +121,29 @@ void draw_select_menu_bottom(matrix_client_t* client) {
     }
     if (graphics->selection >= start_idx && graphics->selection < end_idx) {
         ptrdiff_t idx = graphics->selection - start_idx;
-        draw_main_menu_select(59, idx * 32 + max(BOTTOM_HEIGHT - 5 - (graphics->time_on_menu - SPEED * graphics->selection) * SPEED, button_y_start - 5));
+        draw_main_menu_select(59, idx * 32 + max(BOTTOM_HEIGHT - 5 - (anim_time - SPEED * graphics->selection) * SPEED, button_y_start - 5));
     }
 }
 
 void draw_select_menu(matrix_client_t* client) {
-    draw_main_top_shared(client->graphics_state);
+    struct ipa_graphics_state_t* graphics = client->graphics_state;
+    draw_main_top_shared(graphics);
     draw_select_menu_bottom(client);
+
+    if (graphics->selected && graphics->anim_id != IPA_ANIM_MENU_CHANGE) {
+        graphics->anim_id = IPA_ANIM_MENU_CHANGE;
+        graphics->anim_start_time = graphics->time_on_menu;
+    } else if (graphics->selected && graphics->track_y[0] >= BOTTOM_HEIGHT) {
+        if (client->menu == MENU_DMS) {
+            ssize_t id = queue_matrix_client_load_room(client, client->rooms.data[graphics->selection_num].id, true);
+            add_to_graphics_queue(&client->graphics_state->queue, IPA_QUEUE_LOAD_ROOM, id);
+            client->menu = MENU_CHAT;
+        } else if (client->menu == MENU_SPACES) {
+            //todo
+        } else if (client->menu == MENU_ROOMS) {
+            //also todo
+        }
+    }
 }
 
 void setup_select_dm_menu(matrix_client_t* client) {

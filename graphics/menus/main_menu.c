@@ -126,16 +126,37 @@ void draw_main_menu_bottom(struct ipa_graphics_state_t* graphics) {
     C2D_SceneBegin(bottom);
     draw_main_bottom_shared(graphics);
 
-    // for (size_t i = 0; i < 4; i++) {
-    //     draw_main_menu_button(i, 64, i * 32 + max(BOTTOM_HEIGHT - graphics->time_on_menu * 3, 56));
-    //     // draw_main_menu_button(i, 64, i * 32 + 56);
-    // }
     ptrdiff_t anim_time = graphics->time_on_menu - graphics->anim_start_time;
-    draw_main_menu_button(main_sprites + MENU_SPRITE_OFFSET + 0, 64, 0 * 32 + max(BOTTOM_HEIGHT - (anim_time - SPEED * 0) * SPEED, 56), "Direct Messages");
-    draw_main_menu_button(main_sprites + MENU_SPRITE_OFFSET + 1, 64, 1 * 32 + max(BOTTOM_HEIGHT - (anim_time - SPEED * 1) * SPEED, 56), "Spaces");
-    draw_main_menu_button(main_sprites + MENU_SPRITE_OFFSET + 2, 64, 2 * 32 + max(BOTTOM_HEIGHT - (anim_time - SPEED * 2) * SPEED, 56), "Rooms");
-    draw_main_menu_button(main_sprites + MENU_SPRITE_OFFSET + 3, 64, 3 * 32 + max(BOTTOM_HEIGHT - (anim_time - SPEED * 3) * SPEED, 56), "Settings");
-    draw_main_menu_select(59, graphics->selection * 32 + max(BOTTOM_HEIGHT - 5 - (anim_time - SPEED * graphics->selection) * SPEED, 51));
+    int y[4];
+    //todo: this is kind of messy, will jump if user selects something before the first anim is done
+    // and will be repeated heavily over in select menu, or any menu that does a similar thing
+    // refactor somehow? make a dedicated function for dealing with these? have it return positions?
+    // I think that's the best bet, struct that holds up to 7 ints that are the scroll position of the box
+    // can use the graphics->track_y var, and reduce code overlap.
+    // Further using track_y for that also allows programmatic detection of when everything is off screen rather than
+    // random timing
+    if (graphics->anim_id != IPA_ANIM_MENU_CHANGE) {
+        for (ptrdiff_t i = 0; i <= 3; i++) {
+            graphics->track_y[i] = max(BOTTOM_HEIGHT - (anim_time - SPEED * i) * SPEED, 56);
+        }
+    } else {
+        for (ptrdiff_t i = 0; i <= 3; i++) {
+            //"Why are we using ptrdiff_t instead of size_t for the loop?" Horrible type mismatches and promotions
+            // with min causing an unsigned result
+            // y[i] = min(56 + max((anim_time - SPEED * (3 - i)), 0) * SPEED, BOTTOM_HEIGHT);
+            if (anim_time - SPEED * (3 - i) >= 0) {
+                graphics->track_y[i] += SPEED;
+            }
+        }
+    }
+    for (size_t i = 0; i < 4; i++) {
+        y[i] = graphics->track_y[i];
+    }
+    draw_main_menu_button(main_sprites + MENU_SPRITE_OFFSET + 0, 64, 0 * 32 + y[0], "Direct Messages");
+    draw_main_menu_button(main_sprites + MENU_SPRITE_OFFSET + 1, 64, 1 * 32 + y[1], "Spaces");
+    draw_main_menu_button(main_sprites + MENU_SPRITE_OFFSET + 2, 64, 2 * 32 + y[2], "Rooms");
+    draw_main_menu_button(main_sprites + MENU_SPRITE_OFFSET + 3, 64, 3 * 32 + y[3], "Settings");
+    draw_main_menu_select(59, graphics->selection * 32 + y[graphics->selection] - 5);
 }
 
 void draw_main_menu(matrix_client_t* client) {
@@ -145,9 +166,12 @@ void draw_main_menu(matrix_client_t* client) {
     draw_main_top_shared(graphics);
     draw_main_menu_bottom(graphics);
 
-    //todo: handle touch i guess
+    //todo: handle touch I guess
 
-    if (graphics->selected) {
+    if (graphics->selected && graphics->anim_id != IPA_ANIM_MENU_CHANGE) {
+        graphics->anim_id = IPA_ANIM_MENU_CHANGE;
+        graphics->anim_start_time = graphics->time_on_menu;
+    } else if (graphics->selected && graphics->track_y[0] >= BOTTOM_HEIGHT) {
         if (graphics->selection == 0) {
             setup_select_dm_menu(client);
         } else if (graphics->selection == 1) {

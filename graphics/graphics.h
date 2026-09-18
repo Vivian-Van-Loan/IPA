@@ -30,6 +30,7 @@ enum ipa_graphics_queue_type_t {
     IPA_QUEUE_SYNC_SPACES,
     IPA_QUEUE_SYNC_ROOMS,
     IPA_QUEUE_LOAD_ROOM,
+    IPA_QUEUE_LOAD_SPACE,
     IPA_QUEUE_FUNCTION,
 };
 
@@ -43,6 +44,17 @@ typedef struct ipa_graphics_queue_t {
 #define TEMPLATE_TYPE ipa_graphics_queue_t
 #include "../types/vector.h"
 
+enum ipa_anim_id_t {
+    IPA_ANIM_NONE = 0,
+    IPA_ANIM_MENU_CHANGE,
+    IPA_ANIM_LOAD_IN,
+    IPA_ANIM_LOAD_OUT,
+    IPA_ANIM_MENU_1, //if a menu wants its own animations with IDs it can use one of these
+    IPA_ANIM_MENU_2,
+    IPA_ANIM_MENU_3,
+    IPA_ANIM_MENU_4,
+};
+
 struct ipa_graphics_state_t {
     ptrdiff_t time_on_menu;
     matrix_menu_t menu;
@@ -52,6 +64,10 @@ struct ipa_graphics_state_t {
     ptrdiff_t scroll_pos;
     ptrdiff_t scroll_to_pos;
     ptrdiff_t anim_start_time;
+    enum ipa_anim_id_t anim_id;
+    enum ipa_anim_id_t next_anim_id;
+    int load_y;
+    int track_y[10]; //should only really need 7 but it doesn't hurt
     hash_map$img_path$ipa_image_t$ image_map;
     vector$pair$ipa_image_t_p$size_t$$ vram_images;
     vector$ipa_graphics_queue_t$ queue;
