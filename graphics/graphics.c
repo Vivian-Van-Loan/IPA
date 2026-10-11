@@ -150,7 +150,28 @@ int draw_message_box(struct ipa_graphics_state_t* graphics, int x, int y, int w,
     return h;
 }
 
+//todo: move everything chat related to its own file please
+pair$int$int$ get_nameplate_width(char const* name, char const* avatar_url) {
+    int avatar_width = 16;
+    if (!avatar_url) {
+        avatar_width = 0;
+    }
+
+    // ipa_string_t name_ipa = ipa_string_conv_crop(name, MAX_NAME_WIDTH, L'…'); //honestly the allocation and crop shouldn't matter
+    int string_width = min(get_string_width(name), MAX_NAME_WIDTH);
+
+    int inner_plate_width = avatar_width + 1 + string_width; //actually the inner portion, not the outer
+    if (avatar_width == 0 && string_width == 0) {
+        inner_plate_width = 0;
+    }
+
+    int outer_plate_width = inner_plate_width + 3;
+    return (pair$int$int$){inner_plate_width, outer_plate_width};
+}
+
 int draw_message_box_text(matrix_client_t* client, char const* name, char const* text, char const* avatar_url, int x, int y, int w, u32 dark, u32 light, u32 back, u32 text_c, int max_lines) {
+    pair$int$int$ nameplate_width = get_nameplate_width(name, avatar_url);
+
     int avatar_width = 16;
     int avatar_left = x + 4;
     int avatar_top = y + 3;
@@ -170,14 +191,9 @@ int draw_message_box_text(matrix_client_t* client, char const* name, char const*
     ipa_string_t name_ipa = ipa_string_conv_crop(name, MAX_NAME_WIDTH, L'…'); //honestly the allocation and crop shouldn't matter
 
     int const v_text_offset = 7;
-    int box_width = (avatar_left - x) + avatar_width + 1 + name_ipa.width; //actually the inner portion, not the outer
-    if (avatar_width == 0 && name_ipa.width == 0) {
-        box_width = 0;
-    }
-
     int const w_text_pad = 5 + 2; //5 pixels from box edge, 2 pixels for box edge
     int text_y = y + v_text_offset;
-    int text_x = x + box_width + 5;
+    int text_x = x + nameplate_width.second + 2;
     int num_lines = 0;
     int text_width = x + (w - w_text_pad - text_x);
     size_t offset = 0;
@@ -193,20 +209,20 @@ int draw_message_box_text(matrix_client_t* client, char const* name, char const*
     }
     int h = draw_message_box(client->graphics_state, x, y, w, num_lines, true, dark, light, back);
 
-    if (box_width) {
-        C2D_DrawRectSolidFix(x + 3, y + 2, 0, box_width - 2, 17, light);
+    if (nameplate_width.first) {
+        C2D_DrawRectSolidFix(x + 3, y + 2, 0, nameplate_width.first - 2, 17, light);
         if (num_lines > 1) {
             C2D_DrawLineFix(x + 2, y + 4, light, x + 2, y + 20, light, 1, 0);
-            C2D_DrawLineFix(x + 2, y + 19, light, x + box_width - 1, y + 19, light, 1, 0);
-            C2D_DrawLineFix(x + 1, y + 20, dark, x + box_width - 1, y + 20, dark, 1, 0);
+            C2D_DrawLineFix(x + 2, y + 19, light, x + nameplate_width.first - 1, y + 19, light, 1, 0);
+            C2D_DrawLineFix(x + 1, y + 20, dark, x + nameplate_width.first - 1, y + 20, dark, 1, 0);
         } else {
             C2D_DrawLineFix(x + 2, y + 4, light, x + 2, y + 18, light, 1, 0);
-            C2D_DrawLineFix(x + 4, y + 19, light, x + box_width - 1, y + 19, light, 1, 0);
-            C2D_DrawLineFix(x + 4, y + 20, dark, x + box_width - 1, y + 20, dark, 1, 0);
+            C2D_DrawLineFix(x + 4, y + 19, light, x + nameplate_width.first - 1, y + 19, light, 1, 0);
+            C2D_DrawLineFix(x + 4, y + 20, dark, x + nameplate_width.first - 1, y + 20, dark, 1, 0);
         }
         C2D_DrawLineFix(x + 1, y + 5, dark, x + 5, y + 1, dark, 1, 0); //recover the top left line
-        C2D_DrawLineFix(x + box_width - 1, y + 20, dark, x + box_width + 2, y + 17, dark, 1, 0);
-        C2D_DrawLineFix(x + box_width + 1, y + 18, dark, x + box_width + 1, y + 2, dark, 1, 0);
+        C2D_DrawLineFix(x + nameplate_width.first - 1, y + 20, dark, x + nameplate_width.first + 2, y + 17, dark, 1, 0);
+        C2D_DrawLineFix(x + nameplate_width.first + 1, y + 18, dark, x + nameplate_width.first + 1, y + 2, dark, 1, 0);
     }
 
     if (avatar && avatar->in_vram) {
@@ -403,6 +419,26 @@ void draw_chat_room(matrix_client_t* client) {
     draw_chat_room_bottom(client);
 }
 
+void insert_events(ipa_graphics_queue_t* graphic_entry) {
+    matrix_room_info_t* info = graphic_entry->finished_entry.result;
+    dequeue$matrix_event_t$* events = &info->events;
+    if (events->count == 0) {
+        return;
+    }
+    if (info->reverse) {
+        for (ptrdiff_t i = events->count - 1; i >= 0; i--) {
+            matrix_event_t* event = &events->data[i];
+            int first_width = 0;
+            int max_width = 0;
+            ipa_message_t message = make_ipa_message(event);
+        }
+    } else {
+        for (size_t i = 0; i < events->count; i++) {
+
+        }
+    }
+}
+
 void draw_menu_none(matrix_client_t* client) {
     struct ipa_graphics_state_t* graphics = client->graphics_state;
 
@@ -471,7 +507,7 @@ void handle_queue(matrix_client_t* client) {
                 remove_from_graphics_queue(&graphics->queue, graphic_entry->id);
                 destroy_queue_entry(&entry.value);
             } else if (graphic_entry->type == IPA_QUEUE_LOAD_ROOM) {
-
+                insert_events(graphic_entry);
             } else if (graphic_entry->type == IPA_QUEUE_AVATAR || graphic_entry->type == IPA_QUEUE_IMAGE) {
                 ipa_image_t* image = entry.value.result;
                 ipa_image_t* mapped_image = nullptr;

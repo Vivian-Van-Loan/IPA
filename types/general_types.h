@@ -43,4 +43,8 @@ void alloc_void_free(alloc_void* void_p);
 #define TEMPLATE_TYPE_V float
 #include "pair.h"
 
+#define TEMPLATE_TYPE_K int
+#define TEMPLATE_TYPE_V int
+#include "pair.h"
+
 #endif //MATRIX_CLIENT_GENERAL_TYPES_H
