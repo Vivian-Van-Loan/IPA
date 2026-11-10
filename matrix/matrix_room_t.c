@@ -107,30 +107,31 @@ void matrix_room_add_events(matrix_room_t* room, dequeue$matrix_event_t$* events
             if (!matrix_room_add_user(room, event)) {
                 destroy_event = true;
             }
-            add_event = false;
+            // add_event = false;
         } else if (event->type.first == EVENT_ROOM_TOPIC) {
             room->topic = strdup(event->room.topic.topic);
             room->topic_ts = event->origin_server_ts;
-            destroy_event = true;
+            // destroy_event = true;
         } else if (event->type.first == EVENT_ROOM_NAME) {
             room->name = strdup(event->room.name.name);
             room->name_ts = event->origin_server_ts;
-            destroy_event = true;
+            // destroy_event = true;
         } else if (event->type.first == EVENT_ROOM_AVATAR) {
             room->avatar_url = strdup(event->room.avatar.url);
             room->avatar_ts = event->origin_server_ts;
-            destroy_event = true;
+            // destroy_event = true;
         } else if (event->type.first == EVENT_ROOM_REDACTION) {
             matrix_room_redaction_t* redaction = &event->room.redaction;
             for (size_t j = 0; j < room->events.count; j++) {
                 matrix_event_t* e = &room->events.data[j];
                 if (strcmp(e->id, redaction->redacts) == 0) {
+                    //todo: need to check power level and sender to see if this is a valid redaction
                     matrix_event_destroy(e);
                     dequeue$matrix_event_t$_remove(&room->events, j);
                     break;
                 }
             }
-            destroy_event = true;
+            //do not destroy, message rebuilds will need this later
         }
 
         if (destroy_event) {

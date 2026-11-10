@@ -40,9 +40,12 @@ typedef struct matrix_room_info_t {
     dequeue$matrix_event_t$ events;
     bool reverse;
     char const* end;
+    char const* id;
 } matrix_room_info_t;
 
 ssize_t queue_matrix_client_load_room(matrix_client_t* client, char const* room_id, bool reverse);
+
+matrix_room_t* matrix_client_get_room(matrix_client_t* client, char const* room_id);
 
 matrix_client_t make_client();
 void destroy_client(matrix_client_t* client);

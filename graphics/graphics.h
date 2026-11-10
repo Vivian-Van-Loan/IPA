@@ -70,6 +70,7 @@ struct ipa_graphics_state_t {
     int track_y[10]; //should only really need 7 but it doesn't hurt
     hash_map$img_path$ipa_image_t$ image_map;
     vector$pair$ipa_image_t_p$size_t$$ vram_images;
+    dequeue$ipa_message_t$ messages;
     vector$ipa_graphics_queue_t$ queue;
 };
 

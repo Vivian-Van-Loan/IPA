@@ -224,6 +224,10 @@ int get_char_full_width(wchar_t c) {
 }
 
 int get_string_width(char const* str) {
+    if (!str) {
+        return 0;
+    }
+
     int width = 0;
     mbstate_t conv = {0};
     size_t len = strlen(str);

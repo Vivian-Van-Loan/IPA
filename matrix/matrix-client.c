@@ -318,7 +318,6 @@ ssize_t queue_matrix_client_sync_dump(matrix_client_t* client) {
 
 triple$bool$alloc_void$size_t$ process_matrix_client_load_room(ipa_queue_entry_t entry) {
     triple$bool$alloc_void$size_t$ ret = {true};
-    struct ipa_process_args_t args = *(struct ipa_process_args_t*)entry.args;
     json_t* room_json = nullptr;
     if (!entry.result) {
         efuncprintf("Failed to download room json\n");
@@ -336,8 +335,9 @@ triple$bool$alloc_void$size_t$ process_matrix_client_load_room(ipa_queue_entry_t
     }
 
     matrix_room_info_t room_info = {0};
-    room_info.reverse = *(bool*)args.next_args;
-    free(args.next_args);
+    pair$bool$alloc_str$* pair = entry.args;
+    room_info.reverse = pair->first;
+    room_info.id = pair->second;
     room_info.events = dequeue$matrix_event_t$_new();
     size_t index_i;
     json_t* value_inner;
@@ -367,7 +367,6 @@ triple$bool$alloc_void$size_t$ process_matrix_client_load_room(ipa_queue_entry_t
 
     error:
     efuncprintf("Failed to load room\n");
-    free(args.next_args);
     json_decref(room_json);
     return ret;
 }
@@ -376,14 +375,7 @@ ssize_t queue_matrix_client_load_room(matrix_client_t* client, char const* room_
     if (!client || !room_id) {
         return -1;
     }
-    matrix_room_t* room = nullptr;
-    for (size_t i = 0; i < client->rooms.count; i++) {
-        matrix_room_t* r = &client->rooms.data[i];
-        if (strcmp(r->id, room_id) == 0) {
-            room = r;
-            break;
-        }
-    }
+    matrix_room_t* room = matrix_client_get_room(client, room_id);
     if (!room) {
         efuncprintf("Failed to find room with id %s\n", room_id);
         return -1;
@@ -422,9 +414,10 @@ ssize_t queue_matrix_client_load_room(matrix_client_t* client, char const* room_
     }
     curl_url_cleanup(url);
 
-    bool* next = malloc(sizeof(bool));
-    *next = reverse;
-    struct ipa_process_args_t* args = ipa_process_args_new(&client->login, false, process_matrix_client_load_room, next, sizeof(bool));
+    pair$bool$alloc_str$* next = malloc(sizeof(pair$bool$alloc_str$));
+    next->first = reverse;
+    next->second = strdup(room_id);
+    struct ipa_process_args_t* args = ipa_process_args_new(&client->login, false, process_matrix_client_load_room, next, sizeof(pair$bool$alloc_str$));
     ssize_t id = add_download_str_to_work_queue_callback(complete_url, matrix_process_data, args, sizeof(*args));
     curl_free(complete_url);
     return id;
@@ -433,6 +426,18 @@ ssize_t queue_matrix_client_load_room(matrix_client_t* client, char const* room_
     efuncprintf("Failed to set url\n");
     curl_url_cleanup(url);
     return -1;
+}
+
+matrix_room_t* matrix_client_get_room(matrix_client_t* client, char const* room_id) {
+    matrix_room_t* room = nullptr;
+    for (size_t i = 0; i < client->rooms.count; i++) {
+        matrix_room_t* r = &client->rooms.data[i];
+        if (strcmp(r->id, room_id) == 0) {
+            room = r;
+            break;
+        }
+    }
+    return room;
 }
 
 matrix_client_t make_client() {

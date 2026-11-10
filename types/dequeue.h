@@ -79,7 +79,7 @@ TEMPLATE_INLINE TEMPLATE_TYPE* TEMPLATE_FUNC(push)(TEMPLATE_STRUCT* deq, TEMPLAT
 }
 
 TEMPLATE_INLINE TEMPLATE_TYPE* TEMPLATE_FUNC(push_back_empty)(TEMPLATE_STRUCT* deq) {
-    if (deq->count == deq->capacity) {
+    if ((deq->data + deq->count) == (deq->front + deq->capacity)) {
         TEMPLATE_FUNC(grow)(deq);
     }
     deq->count++;

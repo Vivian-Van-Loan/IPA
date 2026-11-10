@@ -157,10 +157,9 @@ pair$int$int$ get_nameplate_width(char const* name, char const* avatar_url) {
         avatar_width = 0;
     }
 
-    // ipa_string_t name_ipa = ipa_string_conv_crop(name, MAX_NAME_WIDTH, L'…'); //honestly the allocation and crop shouldn't matter
     int string_width = min(get_string_width(name), MAX_NAME_WIDTH);
 
-    int inner_plate_width = avatar_width + 1 + string_width; //actually the inner portion, not the outer
+    int inner_plate_width = 2 + avatar_width + 1 + string_width + 2; //actually the inner portion, not the outer
     if (avatar_width == 0 && string_width == 0) {
         inner_plate_width = 0;
     }
@@ -239,54 +238,100 @@ int draw_message_box_text(matrix_client_t* client, char const* name, char const*
     return h;
 }
 
-int draw_event(matrix_client_t* client, matrix_event_t* event, int x, int y, int w) {
-    if (event_is_message(event->type.first)) {
-        matrix_message_t message = event->message;
-        if (!message.body) {
-            return 0;
-        }
-        matrix_event_t* sender = matrix_room_get_user(client->current_room, event->sender);
-        char const* name = nullptr;
-        char const* url = nullptr;
-        if (sender && sender->type.first == EVENT_ROOM_MEMBER) {
-            name = sender->room.member.display_name;
-            url = sender->room.member.avatar_url;
-        }
-        return draw_message_box_text(client, name, message.body, url, x, y, w, overlay_colour_dark, overlay_colour_light, WHITE, BLACK, 0);
-    } else if (event_is_room(event->type.first)) {
-        char const* text;
-        u32 back = BLACK;
-        u32 text_c = SILVER;
-        u32 light = WHITE; //never actually rendered
-        u32 dark = WHITE;
-        switch (event->type.first) {
-            case EVENT_ROOM_CREATE:
-                text = "Room created";
-                break;
-            case EVENT_ROOM_NAME:
-                text = "Room name changed";
-                break;
-            case EVENT_ROOM_AVATAR:
-                text = "Room avatar changed";
-                break;
-            case EVENT_ROOM_TOPIC:
-                text = "Room topic changed";
-                break;
-            case EVENT_ROOM_MEMBER:
-                text = "User joined";
-                break;
-            case EVENT_ROOM_POWER_LEVELS:
-            case EVENT_ROOM_REDACTION:
-            case EVENT_ROOM_JOIN_RULES:
-            case EVENT_ROOM_CANON_ALIAS:
-            case EVENT_ROOM_ENCRYPT:
-            default:
-                return 0;
-        }
+int draw_message(matrix_client_t* client, ipa_message_t const* message, int x, int y) {
+    int w = 320 - 3;
 
-        return draw_message_box_text(client, nullptr, text, nullptr, x, y, w, dark, light, back, text_c, 1);
+    u32 dark;
+    u32 light;
+    u32 back;
+    u32 text_c;
+    char const* name = nullptr;
+    char const* avatar_url = nullptr;
+    if (message->type == IPA_MSG_MSG) {
+        dark = overlay_colour_dark;
+        light = overlay_colour_light;
+        back = WHITE;
+        text_c = BLACK;
+        matrix_event_t* user = matrix_room_get_user(client->current_room, message->user);
+        if (user && user->type.first == EVENT_ROOM_MEMBER) {
+            name = user->room.member.display_name;
+            avatar_url = user->room.member.avatar_url;
+        }
+    } else if (message->type == IPA_MSG_ANNOUNCEMENT) {
+        dark = WHITE;
+        light = WHITE;
+        back = BLACK;
+        text_c = SILVER;
+    } else {
+        dark = WHITE;
+        light = WHITE;
+        back = BLACK;
+        text_c = SILVER;
     }
-    return 0;
+
+    pair$int$int$ nameplate_width = get_nameplate_width(name, avatar_url);
+
+    int avatar_width = 16;
+    int avatar_left = x + 4;
+    int avatar_top = y + 3;
+    ipa_image_t* avatar = nullptr;
+    if (avatar_url) {
+        avatar = lookup_avatar(&client->graphics_state->image_map, avatar_url, avatar_width, avatar_width);
+        if (!avatar) {
+            queue_avatar_get(client, avatar_url, avatar_width, avatar_width);
+        } else if (!avatar->in_vram) {
+            image_load_vram(avatar);
+        }
+    } else {
+        avatar_left = x;
+        avatar_width = 0;
+    }
+
+    int h = draw_message_box(client->graphics_state, x, y, w, message->lines.count, true, dark, light, back);
+
+    if (nameplate_width.first) {
+        C2D_DrawRectSolidFix(x + 3, y + 2, 0, nameplate_width.first - 2, 17, light);
+        if (message->lines.count > 1) {
+            C2D_DrawLineFix(x + 2, y + 4, light, x + 2, y + 20, light, 1, 0);
+            C2D_DrawLineFix(x + 2, y + 19, light, x + nameplate_width.first - 1, y + 19, light, 1, 0);
+            C2D_DrawLineFix(x + 1, y + 20, dark, x + nameplate_width.first - 1, y + 20, dark, 1, 0);
+        } else {
+            C2D_DrawLineFix(x + 2, y + 4, light, x + 2, y + 18, light, 1, 0);
+            C2D_DrawLineFix(x + 4, y + 19, light, x + nameplate_width.first - 1, y + 19, light, 1, 0);
+            C2D_DrawLineFix(x + 4, y + 20, dark, x + nameplate_width.first - 1, y + 20, dark, 1, 0);
+        }
+        C2D_DrawLineFix(x + 1, y + 5, dark, x + 5, y + 1, dark, 1, 0); //recover the top left line
+        C2D_DrawLineFix(x + nameplate_width.first - 1, y + 20, dark, x + nameplate_width.first + 2, y + 17, dark, 1, 0);
+        C2D_DrawLineFix(x + nameplate_width.first + 1, y + 18, dark, x + nameplate_width.first + 1, y + 2, dark, 1, 0);
+    }
+
+    ipa_string_t name_ipa = ipa_string_conv_crop(name, MAX_NAME_WIDTH, L'…'); //honestly the allocation and crop shouldn't matter
+
+    int const v_text_offset = 7;
+    int const w_text_pad = 5 + 2; //5 pixels from box edge, 2 pixels for box edge
+    int text_y = y + v_text_offset;
+    int text_x = x + nameplate_width.second + 2;
+    int text_width = x + (w - w_text_pad - text_x);
+    for (size_t i = 0; i < message->lines.count; i++) {
+        C2D_DrawRectSolidFix(text_x, text_y, 0, text_width, 13, back); //cover up an alpha-depth compositing problem
+        draw_ipa_string(message->lines.data[i], text_x, text_y, text_c, 0.05f);
+        text_y += 18;
+        text_x = x + w_text_pad;
+        text_width = w - w_text_pad * 2; //since w is entire box width we have to take the padding from both sides off
+    }
+
+    if (avatar && avatar->in_vram) {
+        C2D_SpriteSetPos(avatar->sprite, avatar_left, avatar_top);
+        C2D_SpriteSetDepth(avatar->sprite, 0);
+        C2D_DrawSprite(avatar->sprite);
+    } else if (avatar_width != 0) {
+        draw_load_sprite(client->graphics_state, avatar_left, avatar_top, dark, 0);
+    }
+
+    draw_ipa_string(name_ipa, avatar_left + avatar_width + 1, y + v_text_offset, dark, 0);
+    ipa_string_destroy(&name_ipa);
+
+    return h;
 }
 
 void draw_chat_room_top(struct matrix_client_t* client) {
@@ -295,14 +340,26 @@ void draw_chat_room_top(struct matrix_client_t* client) {
     draw_top_screen_left(client->graphics_state, 0.25f);
     draw_bevel_box(client->graphics_state, 360, 0, 40, 240, DARK_GREY, BLACK, ORANGE, BLACK, 0.25f);
 
-    dequeue$matrix_event_t$* events = &client->current_room->events;
-    int y = 1;
-    for (size_t i = 0; i < events->count; i++) {
-        matrix_event_t* event = &events->data[i];
-        int offset = draw_event(client, event, 40 + 2, y, 320 - 3);
-        if (offset) {
-            y += offset + 2;
+    if (client->current_room) {
+        dequeue$ipa_message_t$* messages = &client->graphics_state->messages;
+        int y = 1;
+        for (ptrdiff_t i = messages->count - 1; i >= 0; i--) {
+            //todo: check if the message is actually on screen or not, shouldn't be too hard
+            int offset = draw_message(client, &messages->data[i], 40 + 2, y);
+            if (offset) {
+                y += offset + 2;
+            }
         }
+
+        // dequeue$matrix_event_t$* events = &client->current_room->events;
+        // int y = 1;
+        // for (size_t i = 0; i < events->count; i++) {
+        //     matrix_event_t* event = &events->data[i];
+        //     int offset = draw_event(client, event, 40 + 2, y, 320 - 3);
+        //     if (offset) {
+        //         y += offset + 2;
+        //     }
+        // }
     }
 }
 
@@ -371,9 +428,15 @@ void draw_chat_room_bottom(struct matrix_client_t* client) {
     pthread_mutex_lock(&client->login.mutex);
     matrix_event_t* user = matrix_room_get_user(client->current_room, client->login.user_id);
     pthread_mutex_unlock(&client->login.mutex);
-    draw_message_box_text(client, user->room.member.display_name,
+    char const* name = "NULL POINTER";
+    char const* avatar = nullptr;
+    if (user) {
+        name = user->room.member.display_name;
+        avatar = user->room.member.avatar_url;
+    }
+    draw_message_box_text(client, name,
         "Hello everybody my name is Markiplier and welcome to Five Nights at Freddies, an indie horror game that you guys suggested in mass, and I saw that Yamimash played it and he said that it was really really good; so I'm very eager to see what is up - and that is a terrifying animatronic bear reads off script family pizzeria looking for security guard to work the night shift. Oh, 12:00 A.M, the first night. If I didn’t want to stay the first night, why would I stay any more than five? Why would I say anymore than two - hello. Okay...Hello? Hello - oh, ah I can’t move. That’s a creepy skull...There’s creepy things on the wall - Oh, hello.",
-        user->room.member.avatar_url, 39, 52, 280, overlay_colour_dark, overlay_colour_light, WHITE, BLACK, 5);
+        avatar, 39, 52, 280, overlay_colour_dark, overlay_colour_light, WHITE, BLACK, 5);
 
     draw_thin_box(39, 150, 44, 52, DARK_GREY, WHITE, true);
     draw_thin_box(39, 207, 44, 26, DARK_GREY, WHITE, true);
@@ -419,22 +482,39 @@ void draw_chat_room(matrix_client_t* client) {
     draw_chat_room_bottom(client);
 }
 
-void insert_events(ipa_graphics_queue_t* graphic_entry) {
-    matrix_room_info_t* info = graphic_entry->finished_entry.result;
-    dequeue$matrix_event_t$* events = &info->events;
+void update_events(struct ipa_graphics_state_t* graphics, matrix_room_t* room) {
+    dequeue$matrix_event_t$* events = &room->events;
+    dequeue$ipa_message_t$* messages = &graphics->messages;
     if (events->count == 0) {
         return;
     }
-    if (info->reverse) {
-        for (ptrdiff_t i = events->count - 1; i >= 0; i--) {
-            matrix_event_t* event = &events->data[i];
-            int first_width = 0;
-            int max_width = 0;
-            ipa_message_t message = make_ipa_message(event);
-        }
-    } else {
-        for (size_t i = 0; i < events->count; i++) {
-
+    while (messages->count && strcmp(events->data[0].room_id, messages->data[0].event_id) != 0) {
+        ipa_message_destroy(&messages->data[0]);
+        dequeue$ipa_message_t$_remove(messages, 0);
+    }
+    for (size_t i = 0; i < events->count; i++) {
+        matrix_event_t* event = &events->data[i];
+        if (event->relates_to.rel_type == MATRIX_REL_TYPE_REPLACE) {
+            //todo: have fun with that
+            // also need to validate against sender
+        } else if (event->type.first == EVENT_ROOM_REDACTION) {
+            for (size_t j = 0; j < messages->count; j++) {
+                ipa_message_t* message = &messages->data[j];
+                if (strcmp(message->event_id, event->room.redaction.redacts) == 0) {
+                    ipa_message_destroy(message);
+                    dequeue$ipa_message_t$_remove(messages, j);
+                    break;
+                }
+            }
+        } else if (event_can_be_message(event)) {
+            matrix_event_t* member_event = matrix_room_get_user(room, event->sender);
+            matrix_room_member_t* member = nullptr;
+            if (member_event && member_event->type.first == EVENT_ROOM_MEMBER) {
+                member = &member_event->room.member;
+            }
+            pair$int$int$ widths = get_nameplate_width(member->display_name, member->avatar_url);
+            ipa_message_t message = make_ipa_message(event, 320 - 3 - widths.second, 320 - 3);
+            dequeue$ipa_message_t$_push_back(messages, message);
         }
     }
 }
@@ -507,7 +587,14 @@ void handle_queue(matrix_client_t* client) {
                 remove_from_graphics_queue(&graphics->queue, graphic_entry->id);
                 destroy_queue_entry(&entry.value);
             } else if (graphic_entry->type == IPA_QUEUE_LOAD_ROOM) {
-                insert_events(graphic_entry);
+                matrix_room_info_t* info = entry.value.result;
+                matrix_room_t* room = matrix_client_get_room(client, info->id);
+                matrix_room_add_events(room, &info->events, info->reverse);
+                update_events(graphics, room);
+                dequeue$matrix_event_t$_free(&info->events);
+                if (client->current_room != room) {
+                    client->current_room = room;
+                }
             } else if (graphic_entry->type == IPA_QUEUE_AVATAR || graphic_entry->type == IPA_QUEUE_IMAGE) {
                 ipa_image_t* image = entry.value.result;
                 ipa_image_t* mapped_image = nullptr;

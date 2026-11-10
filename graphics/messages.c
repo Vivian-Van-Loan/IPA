@@ -1,7 +1,15 @@
 #include "messages.h"
 
+bool event_can_be_message(matrix_event_t* event) {
+    //todo: probably should convert that to a case or direct compare rather than range
+    return event_is_message(event->type.first) || (event->type.first >= EVENT_ROOM_CREATE && event->type.first <= EVENT_ROOM_TOPIC) || event->type.first == EVENT_ROOM_MEMBER;
+}
+
 ipa_message_t make_ipa_message(matrix_event_t* event, int first_line_max_width, int max_line_width) {
     ipa_message_t message = {0};
+    if (!event_can_be_message(event)) {
+        return message;
+    }
     message.event_id = strdup(event->id);
     char const* text;
     if (event_is_message(event->type.first)) {

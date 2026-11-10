@@ -135,7 +135,7 @@ void draw_select_menu(matrix_client_t* client) {
         graphics->anim_start_time = graphics->time_on_menu;
     } else if (graphics->selected && graphics->track_y[0] >= BOTTOM_HEIGHT) {
         if (client->menu == MENU_DMS) {
-            ssize_t id = queue_matrix_client_load_room(client, client->rooms.data[graphics->selection_num].id, true);
+            ssize_t id = queue_matrix_client_load_room(client, client->rooms.data[graphics->selection].id, true);
             add_to_graphics_queue(&client->graphics_state->queue, IPA_QUEUE_LOAD_ROOM, id);
             client->menu = MENU_CHAT;
         } else if (client->menu == MENU_SPACES) {

@@ -24,6 +24,7 @@ typedef struct ipa_message_t {
     vector$ipa_string_t$ lines;
 } ipa_message_t;
 
+bool event_can_be_message(matrix_event_t* event);
 ipa_message_t make_ipa_message(matrix_event_t* event, int first_line_max_width, int max_line_width);
 void ipa_message_destroy(ipa_message_t* message);
 
