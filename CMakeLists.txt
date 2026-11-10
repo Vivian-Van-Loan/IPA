@@ -64,6 +64,8 @@ set(MATRIXC_SRCS
 		graphics/menus/general.h
 		graphics/menus/select_menu.c
 		graphics/menus/select_menu.h
+		graphics/menus/chat_menu.c
+		graphics/menus/chat_menu.h
 )
 
 add_executable(${PROJECT_NAME} ${MATRIXC_SRCS})

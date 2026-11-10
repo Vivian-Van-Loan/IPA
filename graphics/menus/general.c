@@ -95,6 +95,23 @@ void draw_bevel_box(struct ipa_graphics_state_t* graphics, int x, int y, int w, 
     C2D_DrawLineFix(x + w - 7, y + h - 3, border_out, x + w - 3, y + h - 7, border_out, 1, base_depth + DEPTH_STEP_BIG);
 }
 
+void draw_thin_box(int x, int y, int w, int h, u32 outline, u32 inside, bool fill) {
+    if (fill) {
+        C2D_DrawRectSolidFix(x + 2, y + 2, 0, w - 4, h - 4, inside); //infill middle
+        C2D_DrawRectSolidFix(x + 4, y + 1, 0, w - 7, h - 2, inside); //top & bot
+        C2D_DrawRectSolidFix(x + 1, y + 4, 0, w - 2, h - 7, inside); //left & right
+    }
+
+    C2D_DrawLineFix(x + 4, y + 0, outline, x + w - 5, y + 0, outline, 1, 0); //top left to top right
+    C2D_DrawLineFix(x + w - 5, y + 0, outline, x + w - 1, y + 4, outline, 1, 0); //top right corner
+    C2D_DrawLineFix(x + w - 1, y + 4, outline, x + w - 1, y + h - 4, outline, 1, 0); //top right to bot right
+    C2D_DrawLineFix(x + w - 1, y + h - 4, outline, x + w - 4, y + h - 1, outline, 1, 0); //bot right corner
+    C2D_DrawLineFix(x + w - 4, y + h - 1, outline, x + 4, y + h - 1, outline, 1, 0); //bot right to bot left
+    C2D_DrawLineFix(x + 5, y + h, outline, x + 0, y + h - 5, outline, 1, 0); //bot left corner
+    C2D_DrawLineFix(x + 0, y + h - 5, outline, x + 0, y + 5, outline, 1, 0); //bot left to top left
+    C2D_DrawLineFix(x + 0, y + 5, outline, x + 5,y + 0, outline, 1, 0); //top left corner
+}
+
 void draw_load_sprite(struct ipa_graphics_state_t* graphics, int x, int y, u32 colour, float depth) {
     C2D_ImageTint load_tint;
     C2D_PlainImageTint(&load_tint, colour, 1);
