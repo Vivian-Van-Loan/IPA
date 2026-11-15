@@ -8,6 +8,8 @@
 #include <fcntl.h>
 #include <3ds.h>
 #include <malloc.h>
+#include <stdarg.h>
+#include <limits.h>
 
 CURL* curl_handle = NULL;
 struct curl_slist* curl_headers = nullptr;
@@ -345,4 +347,26 @@ char* strdup_null(char const* str) {
         return nullptr;
     }
     return strdup(str);
+}
+
+char* alloc_sprintf(const char* restrict format, ...) {
+    va_list args1, args2;
+    va_start(args1, format);
+    va_start(args2, format);
+    size_t len = vsnprintf(nullptr, 0, format, args1);
+    char* str = malloc(len + 1);
+    vsnprintf(str, len + 1, format, args2);
+    va_end(args1);
+    va_end(args2);
+    return str;
+}
+
+int strcmp_null(char const* str1, char const* str2) {
+    if (!str1 && !str2) {
+        return 0;
+    }
+    if (!str1 || !str2) {
+        return INT_MIN;
+    }
+    return strcmp(str1, str2);
 }

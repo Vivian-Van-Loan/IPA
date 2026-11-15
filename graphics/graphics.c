@@ -135,7 +135,7 @@ void update_events(struct ipa_graphics_state_t* graphics, matrix_room_t* room) {
                 member = &member_event->room.member;
             }
             pair$int$int$ widths = get_nameplate_width(member->display_name, member->avatar_url);
-            ipa_message_t message = make_ipa_message(event, 320 - 3 - widths.second, 320 - 3);
+            ipa_message_t message = make_ipa_message(event, 320 - 3, member);
             dequeue$ipa_message_t$_push_back(messages, message);
         }
     }

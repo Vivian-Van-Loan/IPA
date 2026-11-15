@@ -1,12 +1,17 @@
 #include "chat_menu.h"
 
-int draw_message_box(struct ipa_graphics_state_t* graphics, int x, int y, int w, int num_lines, bool draw_lines, u32 dark, u32 light, u32 back) {
+int get_message_box_height(int num_lines) {
     int h;
     if (num_lines == 1) {
         h = 22;
     } else {
         h = 40 + (num_lines - 2) * 18 + 1;
     }
+    return h;
+}
+
+int draw_message_box(struct ipa_graphics_state_t* graphics, int x, int y, int w, int num_lines, bool draw_lines, u32 dark, u32 light, u32 back) {
+    int h = get_message_box_height(num_lines);
 
     draw_thin_box(x, y, w, h, back, back, true);
 
@@ -222,11 +227,11 @@ void draw_chat_room_top(struct matrix_client_t* client) {
     if (client->current_room) {
         dequeue$ipa_message_t$* messages = &client->graphics_state->messages;
         int y = 1;
-        for (ptrdiff_t i = messages->count - 1; i >= 0; i--) {
+        for (size_t i = 0; i < messages->count; i++) {
             //todo: check if the message is actually on screen or not, shouldn't be too hard
             int offset = draw_message(client, &messages->data[i], 40 + 2, y);
             if (offset) {
-                y += offset + 2;
+                y += offset + MESSAGE_SPACING;
             }
         }
     }

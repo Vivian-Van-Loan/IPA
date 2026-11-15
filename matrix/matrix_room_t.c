@@ -103,12 +103,13 @@ void matrix_room_add_events(matrix_room_t* room, dequeue$matrix_event_t$* events
         matrix_event_t* event = &events->data[i];
         bool destroy_event = false;
         bool add_event = true;
-        if (event->type.first == EVENT_ROOM_MEMBER) {
-            if (!matrix_room_add_user(room, event)) {
-                destroy_event = true;
-            }
-            // add_event = false;
-        } else if (event->type.first == EVENT_ROOM_TOPIC) {
+        // if (event->type.first == EVENT_ROOM_MEMBER) {
+        //     // if (!matrix_room_add_user(room, event)) {
+        //     //     destroy_event = true;
+        //     // }
+        //     // add_event = false;
+        // } else if
+        if (event->type.first == EVENT_ROOM_TOPIC) {
             room->topic = strdup(event->room.topic.topic);
             room->topic_ts = event->origin_server_ts;
             // destroy_event = true;
@@ -140,38 +141,40 @@ void matrix_room_add_events(matrix_room_t* room, dequeue$matrix_event_t$* events
             continue;
         } else if (add_event) {
             if (reverse) {
-                dequeue$matrix_event_t$_push(&room->events, *event);
-            } else {
                 dequeue$matrix_event_t$_push_back(&room->events, *event);
+            } else {
+                dequeue$matrix_event_t$_push(&room->events, *event);
             }
         }
         i++;
     }
 
-    i = 0;
-    while (i < room->events.count) {
-        //todo: this system is untested because its hard to find a replaces event that isn't covered by earlier cases
-        // and edits use their own entire m.replace message type and system for some reason
-        // further we'll have to handle that system, which uses the m.replace message type.
-        // can probably just do it in this loop honestly. have fun
-        loop_start:
-        matrix_event_t* e = &room->events.data[i];
-        if (!e->unsigned_data.replaces_state || e->unsigned_data.replaced) {
-            i++;
-            continue;
-        }
-        for (size_t j = 0; j < room->events.count; j++) {
-            matrix_event_t* old = &room->events.data[j];
-            if (strcmp(old->id, e->unsigned_data.replaces_state) == 0) {
-                matrix_event_destroy(old);
-                dequeue$matrix_event_t$_replace(&room->events, j, *e);
-                e->unsigned_data.replaced = true;
-                dequeue$matrix_event_t$_remove(&room->events, i);
-                goto loop_start;
-            }
-        }
-        i++;
-    }
+    //todo: currently broken and will replace membership events as well, which we don't want as we do want to display that history
+    // likely reduce this to just affecting messages? Probably a good idea
+    // i = 0;
+    // while (i < room->events.count) {
+    //     //todo: this system is untested because its hard to find a replaces event that isn't covered by earlier cases
+    //     // and edits use their own entire m.replace message type and system for some reason
+    //     // further we'll have to handle that system, which uses the m.replace message type.
+    //     // can probably just do it in this loop honestly. have fun
+    //     loop_start:
+    //     matrix_event_t* e = &room->events.data[i];
+    //     if (!e->unsigned_data.replaces_state || e->unsigned_data.replaced) {
+    //         i++;
+    //         continue;
+    //     }
+    //     for (size_t j = 0; j < room->events.count; j++) {
+    //         matrix_event_t* old = &room->events.data[j];
+    //         if (strcmp(old->id, e->unsigned_data.replaces_state) == 0) {
+    //             matrix_event_destroy(old);
+    //             dequeue$matrix_event_t$_replace(&room->events, j, *e);
+    //             e->unsigned_data.replaced = true;
+    //             dequeue$matrix_event_t$_remove(&room->events, i);
+    //             goto loop_start;
+    //         }
+    //     }
+    //     i++;
+    // }
     if (room->events.count > 500) { //shrink if we have too many events
         if (reverse) {
             dequeue$matrix_event_t$_resize_keep_front(&room->events, 500);

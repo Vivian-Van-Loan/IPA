@@ -93,10 +93,13 @@ typedef enum matrix_membership_type_t {
 
 typedef struct matrix_room_member_t {
     char* avatar_url;
+    char* prev_avatar_url;
     char* display_name;
+    char* prev_display_name;
     bool is_direct;
     char* join_authorised_via_users_server;
     matrix_membership_type_t membership;
+    matrix_membership_type_t prev_membership;
     char* reason;
     //todo: maybe figure out ThirdPartyInvite
 } matrix_room_member_t;

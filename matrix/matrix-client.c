@@ -328,6 +328,7 @@ triple$bool$alloc_void$size_t$ process_matrix_client_load_room(ipa_queue_entry_t
         efuncprintf("Failed to parse room json\n");
         goto error;
     }
+    json_dump_file(room_json, SAVE_DIR"/room.json", 0);
     json_t* chunk = json_object_get(room_json, "chunk");
     if (!chunk || !json_is_array(chunk)) {
         efuncprintf("Failed to get chunk from sync json\n");

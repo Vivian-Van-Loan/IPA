@@ -74,5 +74,7 @@ off_t get_file_size(char const* path);
 off_t get_file_size_fd(int fd);
 
 char* strdup_null(char const* str);
+char* alloc_sprintf(const char* restrict format, ...);
+int strcmp_null(char const* str1, char const* str2);
 
 #endif //MATRIX_CLIENT_UTILS_H

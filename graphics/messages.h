@@ -25,7 +25,7 @@ typedef struct ipa_message_t {
 } ipa_message_t;
 
 bool event_can_be_message(matrix_event_t* event);
-ipa_message_t make_ipa_message(matrix_event_t* event, int first_line_max_width, int max_line_width);
+ipa_message_t make_ipa_message(matrix_event_t* event, int max_line_width, matrix_room_member_t* user);
 void ipa_message_destroy(ipa_message_t* message);
 
 #endif //MATRIX_CLIENT_MESSAGES_H

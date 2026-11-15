@@ -162,7 +162,7 @@ matrix_room_encrypt_t matrix_make_room_encrypt(json_t const* encrypt_json) {
     return encrypt;
 }
 
-matrix_room_member_t matrix_make_room_member(json_t const* member_json) {
+matrix_room_member_t matrix_make_room_member(json_t const* member_json, json_t const* event_json) {
     matrix_room_member_t member = {0};
 
     json_t* avatar_url = json_object_get(member_json, "avatar_url");
@@ -202,6 +202,42 @@ matrix_room_member_t matrix_make_room_member(json_t const* member_json) {
     json_t* reason = json_object_get(member_json, "reason");
     if (reason && json_is_string(reason)) {
         member.reason = strdup(json_string_value(reason));
+    }
+
+    json_t* unsigned_data = json_object_get(event_json, "unsigned");
+    json_t* prev_content = nullptr;
+    if (unsigned_data && json_is_object(unsigned_data)) {
+        prev_content = json_object_get(unsigned_data, "prev_content");
+    }
+
+    if (prev_content && json_is_object(prev_content)) {
+        json_t* prev_avatar_url = json_object_get(prev_content, "avatar_url");
+        if (prev_avatar_url && json_is_string(prev_avatar_url)) {
+            member.prev_avatar_url = strdup(json_string_value(prev_avatar_url));
+        }
+        json_t* prev_display_name = json_object_get(prev_content, "displayname");
+        if (prev_display_name && json_is_string(prev_display_name)) {
+            member.prev_display_name = strdup(json_string_value(prev_display_name));
+        }
+
+        json_t* prev_membership = json_object_get(prev_content, "membership");
+        if (prev_membership && json_is_string(prev_membership)) {
+            char const* memb = json_string_value(prev_membership);
+            if (strcmp(memb, "invite") == 0) {
+                member.prev_membership = MATRIX_MEMBERSHIP_INVITE;
+            } else if (strcmp(memb, "join") == 0) {
+                member.prev_membership = MATRIX_MEMBERSHIP_JOIN;
+            } else if (strcmp(memb, "knock") == 0) {
+                member.prev_membership = MATRIX_MEMBERSHIP_KNOCK;
+            } else if (strcmp(memb, "leave") == 0) {
+                member.prev_membership = MATRIX_MEMBERSHIP_LEAVE;
+            } else if (strcmp(memb, "ban") == 0) {
+                member.prev_membership = MATRIX_MEMBERSHIP_BAN;
+            } else {
+                efuncprintf("Unknown membership %s\n", memb);
+                member.prev_membership = MATRIX_MEMBERSHIP_NONE;
+            }
+        }
     }
     return member;
 }
@@ -317,7 +353,7 @@ matrix_event_room_t matrix_make_room_event(matrix_event_type_t type, json_t* eve
             event.encrypt = matrix_make_room_encrypt(content);
             break;
         case EVENT_ROOM_MEMBER:
-            event.member = matrix_make_room_member(content);
+            event.member = matrix_make_room_member(content, event_json);
             break;
         case EVENT_ROOM_POWER_LEVELS:
             event.power_levels = matrix_make_room_power_levels(content);
